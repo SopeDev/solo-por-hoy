@@ -1,0 +1,144 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum BroadcastKind {
+  NIGHTLY_PROMPT
+  MORNING_REPORT
+
+  @@map("broadcast_kind")
+}
+
+model User {
+  id                String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name              String?            @map("display_name")
+  email             String?            @unique
+  emailVerified     DateTime?          @map("email_verified") @db.Timestamptz(6)
+  image             String?
+  createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  accounts          Account[]
+  sessions          Session[]
+  memberships       Membership[]
+  groupsCreated     Group[]
+  checkIns          CheckIn[]
+  pushSubscriptions PushSubscription[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId            String   @map("user_id") @db.Uuid
+  type              String
+  provider          String
+  providerAccountId String   @map("provider_account_id")
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id") @db.Uuid
+  expires      DateTime @db.Timestamptz(6)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime @db.Timestamptz(6)
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+/// A group of people who see each other's check-ins. For now each person belongs to one group; later groups can
+/// live inside communities (alcohol, porn, …).
+model Group {
+  id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String
+  /// Joining is by invite link (`/unirse/<code>`).
+  inviteCode  String       @unique @map("invite_code")
+  createdById String       @map("created_by_id") @db.Uuid
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy   User         @relation(fields: [createdById], references: [id])
+  memberships Membership[]
+
+  @@map("groups")
+}
+
+model Membership {
+  id       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupId  String   @map("group_id") @db.Uuid
+  userId   String   @map("user_id") @db.Uuid
+  joinedAt DateTime @default(now()) @map("joined_at") @db.Timestamptz(6)
+  group    Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+  @@index([userId])
+  @@map("memberships")
+}
+
+/// One answer per person per day to "¿Recaíste hoy?". A day with no row is a day without an answer. Check-ins belong
+/// to the person, not the group, so they follow them to any group.
+model CheckIn {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  /// The day answered for (see `checkInDay`: the night after midnight still counts as the day before).
+  day        DateTime @db.Date
+  relapsed   Boolean
+  answeredAt DateTime @default(now()) @map("answered_at") @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, day])
+  @@map("check_ins")
+}
+
+/// A browser's Web Push subscription. A person has one per device that enabled reminders.
+model PushSubscription {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_subscriptions")
+}
+
+/// Records each daily notification run, so a cron invoked twice for the same day sends only once.
+model Broadcast {
+  id     String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  kind   BroadcastKind
+  day    DateTime      @db.Date
+  sentAt DateTime      @default(now()) @map("sent_at") @db.Timestamptz(6)
+
+  @@unique([kind, day])
+  @@map("broadcasts")
+}
