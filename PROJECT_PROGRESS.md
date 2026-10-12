@@ -16,9 +16,11 @@ Last updated: 2026-10-12
   - Tests for day boundaries (rollover hour, daylight saving), streaks, and the report text; migration and the send flow checked against an embedded Postgres with a mock push service.
 - Deployed to https://solo-por-hoy.vercel.app with Prisma Postgres; the initial migration is applied.
 - Rewrote the sign-in and first-run copy around shared accountability instead of describing the mechanics.
+- Installed on Android; a test notification arrived.
+- iPhone guidance: Share › “Agregar a inicio” install steps, an iOS 16.4+ note, and iOS settings path for blocked notifications.
 
 ## Next
 
-- Finish deploy setup: Google OAuth client, the remaining environment variables (`AUTH_*`, `ALLOWED_EMAILS`, `VAPID_*`, `CRON_SECRET`, `APP_TIME_ZONE`), redeploy, then install on both phones and enable reminders.
+- Install on the second phone. On an iPhone, check that Google sign-in from the installed app comes back signed in, and that the nightly question and morning report arrive.
 - After a few days of use: adjust notification times and wording; consider a reminder for anyone who still hasn't answered later in the night.
 - Later: communities by topic with groups inside them (create, invite, request to join), and daily messages.

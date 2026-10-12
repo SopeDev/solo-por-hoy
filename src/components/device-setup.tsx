@@ -16,19 +16,28 @@ function urlBase64ToUint8Array(base64String: string) {
 }
 
 function isStandalone() {
-  return window.matchMedia("(display-mode: standalone)").matches;
+  return window.matchMedia("(display-mode: standalone)").matches || ("standalone" in navigator && navigator.standalone === true);
+}
+
+/** iPhone or iPad (iPadOS reports itself as a Mac, so touch support tells them apart). */
+function isIos() {
+  return /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
 }
 
 /** This phone: installing the app and turning on the nightly question and morning report. */
 export function DeviceSetup({ vapidPublicKey }: { vapidPublicKey: string | null }) {
   const [push, setPush] = useState<PushState>("loading");
   const [installed, setInstalled] = useState(true);
+  const [ios, setIos] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   useEffect(() => {
     async function check() {
+      // iPhones only offer notifications once the app is on the home screen, so this is known before push support.
+      setInstalled(isStandalone());
+      setIos(isIos());
       if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
         setPush("unsupported");
         return;
@@ -38,7 +47,6 @@ export function DeviceSetup({ vapidPublicKey }: { vapidPublicKey: string | null 
       // Keeps the server's copy current: the browser can renew a subscription on its own.
       if (subscription) await saveSubscription(subscription.toJSON()).catch(() => undefined);
       setPush(subscription ? "on" : Notification.permission === "denied" ? "denied" : "off");
-      setInstalled(isStandalone());
     }
     void check();
 
@@ -104,7 +112,12 @@ export function DeviceSetup({ vapidPublicKey }: { vapidPublicKey: string | null 
   return (
     <div className="grid gap-3">
       {!installed ? (
-        installPrompt ? (
+        ios ? (
+          <p className="text-sm text-muted-foreground">
+            Para recibir los recordatorios en tu iPhone, instálala: toca Compartir (el cuadro con la flecha hacia arriba), elige “Agregar a inicio” y
+            ábrela desde tu pantalla de inicio.
+          </p>
+        ) : installPrompt ? (
           <button className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-border px-4 font-medium transition hover:bg-white/5" onClick={install} type="button">
             <Download aria-hidden size={18} /> Instalar la app
           </button>
@@ -113,9 +126,16 @@ export function DeviceSetup({ vapidPublicKey }: { vapidPublicKey: string | null 
         )
       ) : null}
 
-      {push === "unsupported" ? <p className="text-sm text-muted-foreground">Este navegador no admite notificaciones. Abre la app en Chrome en tu Android.</p> : null}
+      {push === "unsupported" && !ios ? <p className="text-sm text-muted-foreground">Este navegador no admite notificaciones. Abre la app en Chrome en tu Android.</p> : null}
+      {push === "unsupported" && ios && installed ? <p className="text-sm text-muted-foreground">Para recibir notificaciones, tu iPhone necesita iOS 16.4 o más reciente.</p> : null}
       {push !== "unsupported" && push !== "loading" && !vapidPublicKey ? <p className="text-sm text-muted-foreground">Las notificaciones aún no están configuradas en el servidor.</p> : null}
-      {push === "denied" ? <p className="text-sm text-muted-foreground">Bloqueaste las notificaciones. Actívalas en los ajustes del sitio (🔒 junto a la dirección) y vuelve aquí.</p> : null}
+      {push === "denied" ? (
+        <p className="text-sm text-muted-foreground">
+          {ios
+            ? "Bloqueaste las notificaciones. Actívalas en Ajustes › Notificaciones › Solo por hoy y vuelve aquí."
+            : "Bloqueaste las notificaciones. Actívalas en los ajustes del sitio (🔒 junto a la dirección) y vuelve aquí."}
+        </p>
+      ) : null}
 
       {push === "off" && vapidPublicKey ? (
         <button className="flex min-h-12 items-center justify-center gap-2 rounded-xl bg-primary px-4 font-semibold text-primary-foreground transition hover:brightness-110 disabled:opacity-60" disabled={pending} onClick={enable} type="button">

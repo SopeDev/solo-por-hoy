@@ -5,7 +5,7 @@ Last updated: 2026-10-12
 ## Product scope
 
 - Solo por hoy is an accountability app for people trying to stop a habit, used in a small group. Every night it asks "¿Recaíste hoy?"; each person answers Sí, No, or nothing. The next morning everyone in the group is told how each person did.
-- Delivered as a mobile-first installable PWA, targeting Android (Chrome) first, deployed to Vercel.
+- Delivered as a mobile-first installable PWA, targeting Android (Chrome) first, deployed to Vercel. iPhones (iOS 16.4+) are supported once the app is added to the home screen, which is the only way iOS allows web notifications; iOS shows no notification buttons, so tapping the nightly question opens the app to answer.
 - MVP: two friends in one group. Communities by topic (alcohol, drugs, porn, …) holding groups people create, invite to, or request to join, and daily messages (stoicism, self-development), are planned for later; the schema keeps groups separate from check-ins so they can be added without moving data.
 - The interface is Spanish only for now; there is no i18n layer yet.
 
