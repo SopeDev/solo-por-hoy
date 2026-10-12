@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Solo por hoy",
     short_name: "Solo por hoy",
-    description: "Cada noche, una pregunta. Cada mañana, tu grupo sabe cómo les fue.",
+    description: "Dejarlo cuesta menos cuando no lo haces solo. Tu gente te acompaña, un día a la vez.",
     lang: "es",
     start_url: "/",
     scope: "/",

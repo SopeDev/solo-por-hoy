@@ -14,9 +14,11 @@ Last updated: 2026-10-12
   - Service worker: nightly question with answer buttons on the notification, morning report, confirmation after answering.
   - Vercel Cron routes for the nightly prompt and morning report, each sent once per day.
   - Tests for day boundaries (rollover hour, daylight saving), streaks, and the report text; migration and the send flow checked against an embedded Postgres with a mock push service.
+- Deployed to https://solo-por-hoy.vercel.app with Prisma Postgres; the initial migration is applied.
+- Rewrote the sign-in and first-run copy around shared accountability instead of describing the mechanics.
 
 ## Next
 
-- Deploy: Vercel project, Prisma Postgres, Google OAuth client, environment variables (see `.env.example`), then install on both phones and enable reminders.
+- Finish deploy setup: Google OAuth client, the remaining environment variables (`AUTH_*`, `ALLOWED_EMAILS`, `VAPID_*`, `CRON_SECRET`, `APP_TIME_ZONE`), redeploy, then install on both phones and enable reminders.
 - After a few days of use: adjust notification times and wording; consider a reminder for anyone who still hasn't answered later in the night.
 - Later: communities by topic with groups inside them (create, invite, request to join), and daily messages.

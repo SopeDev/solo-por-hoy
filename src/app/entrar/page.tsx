@@ -23,7 +23,7 @@ export default async function SignInPage({ searchParams }: PageProps<"/entrar">)
         {/* eslint-disable-next-line @next/next/no-img-element -- a static SVG needs no optimization */}
         <img alt="" className="mx-auto size-24" src="/icons/icon-source.svg" />
         <h1 className="mt-8 font-display text-4xl">Solo por hoy</h1>
-        <p className="mt-3 text-muted-foreground">Cada noche, una pregunta. Cada mañana, tu grupo sabe cómo les fue.</p>
+        <p className="mt-3 text-muted-foreground">Dejarlo cuesta menos cuando no lo haces solo. Tu gente te acompaña, un día a la vez.</p>
 
         {error ? (
           <p className="mt-6 rounded-xl border border-relapse/40 bg-relapse/10 px-4 py-3 text-sm text-relapse" role="alert">

@@ -39,7 +39,7 @@ export default async function HomePage() {
         <section className={cardClass}>
           <h2 className="font-display text-2xl">Empieza con tu gente</h2>
           <p className="mt-2 text-muted-foreground">
-            Cada noche te preguntamos si recaíste. Cada mañana, tu grupo sabe cómo le fue a cada quien.
+            Cada noche respondes con honestidad. Cada mañana tu grupo sabe cómo vas, y tú sabes cómo van ellos.
           </p>
           <form action={createGroup} className="mt-5 grid gap-3">
             <label className="text-sm text-muted-foreground" htmlFor="group-name">
