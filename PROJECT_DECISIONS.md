@@ -15,7 +15,7 @@ Last updated: 2026-10-14
 - **Group admin**: whoever created the group (`createdById`) can rename it, remove members, and replace the invite link. Removing someone also replaces the link, so the old one can't bring them back. Anyone can leave; if the creator leaves, the longest-standing member takes over, and the last one out deletes the group. No roles until communities exist.
 - **Check-in**: one per person per day, `relapsed` false ("Sí, me mantuve") or true ("No, recaí"), with an optional note (280 characters). A day with no row is "no answer". Check-ins belong to the person, not the group. The answer can be changed until the day closes.
 - **Profile**: an optional nickname the group sees instead of the Google first name, and a private "porqué" (140 characters) shown only to the person under the nightly question.
-- **Signal**: a push one person sends. SOS ("Necesito apoyo") goes to everyone else in the group right away, at most once per 30 minutes. Encouragement ("💪 Ánimo") and a reminder to answer ("Recordarle", with the answer buttons) go to one groupmate, once a day per person; a reminder only to someone who hasn't answered today.
+- **Signal**: a push one person sends. SOS ("Necesito apoyo") goes to everyone else in the group right away, at most once per 30 minutes. Encouragement ("💪 Ánimo") and a reminder to answer ("Recordarle", with the answer buttons) go to one groupmate, once a day per person; a reminder only after tonight's question went out, and only to someone who hasn't answered today.
 - **Push subscription**: one per device that turned on reminders. Expired ones (404/410 from the push service) are deleted when sending.
 - **Broadcast**: one row per kind (nightly prompt, morning report) per day, so a cron call repeated on the same day sends nothing.
 
@@ -29,7 +29,8 @@ Last updated: 2026-10-14
 - Clean streak: consecutive clean days, ending today, or ending yesterday while today is unanswered. A relapse or an unanswered day ends it.
 - Total clean days count every clean day ever and never reset, so a relapse ends the streak without erasing the history.
 - Group streak: consecutive closed days (ending yesterday) on which everyone in the group answered "Sí, me mantuve"; a relapse or a missing answer from anyone ends it, and people count from the day they joined. It ends at yesterday so it never reveals today's answers. Shown on home and in the morning report (from 2 days). No rankings between members.
-- The sunrise on home rises with the personal streak and is fully up at 90 days.
+- The sunrise on home shows the personal streak beside a sun that rises with it (faster in the first days so they show), fully up at 90 days.
+- The clean-day rate counts today only once it's answered, so it doesn't drop every morning.
 
 ## Privacy
 

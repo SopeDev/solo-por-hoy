@@ -7,7 +7,7 @@ import { displayName } from "@/lib/check-ins";
 import { checkInDay, dateOfDay } from "@/lib/days";
 import { getAppTimeZone } from "@/lib/env";
 import { promptPayload, sendPush } from "@/lib/push";
-import { getMembership, USER_NAME_FIELDS } from "@/lib/queries";
+import { getMembership, isNightlyPromptSent, USER_NAME_FIELDS } from "@/lib/queries";
 
 const HOUR = 60 * 60;
 const SOS_COOLDOWN_MS = 30 * 60 * 1000;
@@ -64,7 +64,10 @@ export async function sendCheer(toUserId: string): Promise<Result> {
   return { ok: true };
 }
 
-/** Reminds someone who hasn't answered today, with the question's answer buttons. Once a day per person. */
+/**
+ * Reminds someone who hasn't answered today, with the question's answer buttons. Only after tonight's question went
+ * out, and once a day per person.
+ */
 export async function sendNudge(toUserId: string): Promise<Result> {
   const userId = await requireActionUserId();
   const { name, membership } = await sender(userId);
@@ -72,11 +75,12 @@ export async function sendNudge(toUserId: string): Promise<Result> {
 
   const today = checkInDay(new Date(), getAppTimeZone());
   const day = dateOfDay(today);
-  const [answered, already] = await Promise.all([
+  const [answered, already, asked] = await Promise.all([
     db.checkIn.findUnique({ where: { userId_day: { userId: toUserId, day } }, select: { id: true } }),
     db.signal.findFirst({ where: { fromUserId: userId, toUserId, kind: "NUDGE", day } }),
+    isNightlyPromptSent(today),
   ]);
-  if (answered) return { ok: false, reason: "invalid" };
+  if (answered || !asked) return { ok: false, reason: "invalid" };
   if (already) return { ok: false, reason: "limit" };
 
   await db.signal.create({ data: { kind: "NUDGE", fromUserId: userId, toUserId, day } });

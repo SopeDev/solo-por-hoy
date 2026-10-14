@@ -65,6 +65,8 @@ describe("progress", () => {
   it("counts unanswered days against the clean rate", () => {
     assert.equal(cleanRate(answers({}), "2026-10-04"), null);
     assert.equal(cleanRate(answers({ "2026-10-01": false, "2026-10-02": true, "2026-10-04": false }), "2026-10-04"), 0.5);
+    // Today, still unanswered, doesn't count yet.
+    assert.equal(cleanRate(answers({ "2026-10-12": false, "2026-10-13": false }), "2026-10-14"), 1);
   });
 
   it("celebrates weeks, months and years", () => {

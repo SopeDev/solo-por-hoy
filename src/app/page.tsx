@@ -13,7 +13,7 @@ import { cleanRate, cleanStreak, groupStreak, longestStreak, statusOf, totalClea
 import { cn } from "@/lib/cn";
 import { addDays, checkInDay, daysEndingOn, formatDay } from "@/lib/days";
 import { getAppTimeZone, getVapidPublicKey } from "@/lib/env";
-import { getMembership, isYesterdayOpen, loadGroupHome } from "@/lib/queries";
+import { getMembership, isNightlyPromptSent, isYesterdayOpen, loadGroupHome } from "@/lib/queries";
 
 const HISTORY_DAYS = 7;
 
@@ -56,7 +56,11 @@ export default async function HomePage() {
 
   const today = checkInDay(new Date(), getAppTimeZone());
   const yesterday = addDays(today, -1);
-  const [{ members, myAnswers }, yesterdayOpen] = await Promise.all([loadGroupHome(userId, membership.groupId, today), isYesterdayOpen(today)]);
+  const [{ members, myAnswers }, yesterdayOpen, askedTonight] = await Promise.all([
+    loadGroupHome(userId, membership.groupId, today),
+    isYesterdayOpen(today),
+    isNightlyPromptSent(today),
+  ]);
   const self = members.find((member) => member.isMe)!;
   const streak = cleanStreak(myAnswers, today);
   const best = longestStreak(myAnswers);
@@ -66,7 +70,8 @@ export default async function HomePage() {
   const others = members.filter((member) => !member.isMe);
   const yesterdayMembers = members.filter((member) => member.joinedDay <= yesterday);
   const missedYesterday = yesterdayOpen && self.joinedDay <= yesterday && !myAnswers.has(yesterday);
-  const pendingToday = others.filter((member) => !member.answers.has(today));
+  // Reminders only once tonight's question has gone out; in the morning nobody is expected to have answered.
+  const pendingToday = askedTonight ? others.filter((member) => !member.answers.has(today)) : [];
 
   return (
     <AppShell groupName={membership.group.name}>
@@ -86,15 +91,6 @@ export default async function HomePage() {
         <CheckInButtons answer={myAnswers.get(today)} day={today} note={self.notes.today} />
         <div className="mt-5 border-t border-border pt-4">
           <Sunrise streak={streak} />
-          <p className="mt-3 text-sm text-muted-foreground">
-            {streak > 0 ? (
-              <>
-                Racha: <span className="font-semibold text-foreground">{streak} {streak === 1 ? "día" : "días"}</span> limpio
-              </>
-            ) : (
-              "Hoy empieza tu racha."
-            )}
-          </p>
           {rate !== null ? (
             <dl className="mt-3 grid grid-cols-3 gap-2 text-center">
               {[
@@ -113,9 +109,7 @@ export default async function HomePage() {
       </section>
 
       {others.length > 0 ? (
-        <section className={cn(cardClass, "mt-4")}>
-          <h2 className="font-medium">¿Momento difícil?</h2>
-          <p className="mt-1 mb-4 text-sm text-muted-foreground">Avísale a tu grupo antes de que pase, no después.</p>
+        <section className="mt-4 rounded-3xl border border-border bg-surface px-5 py-3">
           <SosButton />
         </section>
       ) : null}
@@ -130,7 +124,7 @@ export default async function HomePage() {
                 <li key={member.id}>
                   <div className="flex items-center justify-between gap-3">
                     <span className="min-w-0 flex-1 truncate">{member.isMe ? "Tú" : member.name}</span>
-                    {!member.isMe ? <SignalButton kind="cheer" sent={member.cheered} toUserId={member.id} /> : null}
+                    {!member.isMe ? <SignalButton kind="cheer" sent={member.cheered} toName={member.name} toUserId={member.id} /> : null}
                     <span
                       className={cn(
                         "shrink-0 rounded-full px-3 py-1 text-sm",
@@ -171,7 +165,7 @@ export default async function HomePage() {
             {pendingToday.map((member) => (
               <li className="flex items-center justify-between gap-3 text-sm" key={member.id}>
                 <span className="truncate text-muted-foreground">{member.name} aún no responde hoy</span>
-                <SignalButton kind="nudge" sent={member.nudged} toUserId={member.id} />
+                <SignalButton kind="nudge" sent={member.nudged} toName={member.name} toUserId={member.id} />
               </li>
             ))}
           </ul>

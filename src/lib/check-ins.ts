@@ -35,8 +35,12 @@ export function longestStreak(answers: ReadonlyMap<DayKey, boolean>) {
   return longest;
 }
 
-/** Share of days answered "Sí, me mantuve" from the first answer through `last`, unanswered days included. */
-export function cleanRate(answers: ReadonlyMap<DayKey, boolean>, last: DayKey) {
+/**
+ * Share of days answered "Sí, me mantuve" from the first answer through today, unanswered days included. Today only
+ * counts once it's answered, so the rate doesn't drop every morning before there's been a chance to answer.
+ */
+export function cleanRate(answers: ReadonlyMap<DayKey, boolean>, today: DayKey) {
+  const last = answers.has(today) ? today : addDays(today, -1);
   const days = [...answers.keys()].filter((day) => day <= last).sort();
   if (days.length === 0) return null;
   let total = 0;
