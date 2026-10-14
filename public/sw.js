@@ -22,8 +22,8 @@ self.addEventListener("push", (event) => {
         requireInteraction: true,
         data,
         actions: [
-          { action: "no", title: "No, me mantuve" },
-          { action: "yes", title: "Sí, recaí" },
+          { action: "clean", title: "Sí, me mantuve" },
+          { action: "relapsed", title: "No, recaí" },
         ],
       }),
     );
@@ -46,8 +46,8 @@ self.addEventListener("notificationclick", (event) => {
   const data = notification.data || {};
   notification.close();
 
-  if (data.type === "prompt" && (event.action === "yes" || event.action === "no")) {
-    event.waitUntil(answer(data.day, event.action === "yes"));
+  if (data.type === "prompt" && (event.action === "clean" || event.action === "relapsed")) {
+    event.waitUntil(answer(data.day, event.action === "relapsed"));
     return;
   }
   event.waitUntil(openApp());

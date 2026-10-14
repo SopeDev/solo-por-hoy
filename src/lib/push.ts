@@ -54,5 +54,5 @@ export async function sendPush(userIds: string[], payload: PushPayload, options:
 }
 
 export function promptPayload(day: DayKey): PushPayload {
-  return { type: "prompt", title: "¿Recaíste hoy?", body: "Responde aquí mismo. Solo por hoy.", day };
+  return { type: "prompt", title: "¿Te mantuviste hoy?", body: "Responde aquí mismo. Solo por hoy.", day };
 }

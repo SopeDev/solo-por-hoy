@@ -1,6 +1,6 @@
 # Solo por hoy
 
-Every night: "¿Recaíste hoy?". Every morning: your group finds out how everyone did. An installable PWA (Android first).
+Every night: "¿Te mantuviste hoy?". Every morning: your group finds out how everyone did. An installable PWA (Android first).
 
 See `PROJECT_DECISIONS.md` for how it works and `PROJECT_PROGRESS.md` for what's done.
 

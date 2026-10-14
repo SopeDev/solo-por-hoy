@@ -77,7 +77,7 @@ export default async function HomePage() {
     <Shell groupName={membership.group.name}>
       <section className={cardClass}>
         <p className="text-sm capitalize text-muted-foreground">{formatDay(today)}</p>
-        <h2 className="mt-1 font-display text-3xl">¿Recaíste hoy?</h2>
+        <h2 className="mt-1 font-display text-3xl">¿Te mantuviste hoy?</h2>
         <CheckInButtons answer={myAnswers.get(today)} />
         <p className="mt-5 border-t border-border pt-4 text-sm text-muted-foreground">
           {streak > 0 ? (
