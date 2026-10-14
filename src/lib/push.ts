@@ -8,7 +8,9 @@ import { getVapidDetails } from "./env";
 /** What the service worker (`public/sw.js`) receives. A prompt carries the day its Sí / No buttons answer. */
 export type PushPayload =
   | { type: "prompt"; title: string; body: string; day: DayKey }
-  | { type: "report"; title: string; body: string };
+  | { type: "report"; title: string; body: string }
+  /** From someone in the group: a call for support or encouragement. `tag` keeps one notification per kind. */
+  | { type: "message"; title: string; body: string; tag: string };
 
 type SendOptions = {
   /** Seconds the push service keeps trying to deliver to an offline phone. */
@@ -53,6 +55,8 @@ export async function sendPush(userIds: string[], payload: PushPayload, options:
   return { sent: results.length - gone.length - failed, failed };
 }
 
-export function promptPayload(day: DayKey): PushPayload {
+/** The nightly question; `from` names whoever sent it as a reminder. */
+export function promptPayload(day: DayKey, from?: string): PushPayload {
+  if (from) return { type: "prompt", title: `${from} te pregunta: ¿te mantuviste hoy?`, body: "Responde aquí mismo. Solo por hoy.", day };
   return { type: "prompt", title: "¿Te mantuviste hoy?", body: "Responde aquí mismo. Solo por hoy.", day };
 }

@@ -1,41 +1,29 @@
-import { signOut } from "@/auth";
 import { createGroup, joinGroup } from "@/app/actions/groups";
+import { AppShell, cardClass, inputClass } from "@/components/app-shell";
 import { CheckInButtons } from "@/components/check-in-buttons";
 import { DeviceSetup } from "@/components/device-setup";
 import { GroupWeek } from "@/components/group-week";
 import { InviteLink } from "@/components/invite-link";
+import { NoteEditor } from "@/components/note-editor";
+import { SignalButton, SosButton } from "@/components/support-buttons";
+import { db } from "@/db/client";
 import { requireUserId } from "@/lib/auth-user";
-import { cleanStreak, statusOf } from "@/lib/check-ins";
+import { Sunrise } from "@/components/sunrise";
+import { cleanRate, cleanStreak, groupStreak, longestStreak, statusOf, totalCleanDays } from "@/lib/check-ins";
 import { cn } from "@/lib/cn";
 import { addDays, checkInDay, daysEndingOn, formatDay } from "@/lib/days";
 import { getAppTimeZone, getVapidPublicKey } from "@/lib/env";
-import { getMembership, loadGroupHome } from "@/lib/queries";
+import { getMembership, isYesterdayOpen, loadGroupHome } from "@/lib/queries";
 
 const HISTORY_DAYS = 7;
 
-const inputClass = "min-h-12 w-full rounded-xl border border-border bg-background px-4 text-base outline-none focus:border-primary";
-const cardClass = "rounded-3xl border border-border bg-surface p-5";
-
 export default async function HomePage() {
   const userId = await requireUserId();
-  const membership = await getMembership(userId);
-
-  async function signOutAction() {
-    "use server";
-    await signOut({ redirectTo: "/entrar" });
-  }
-
-  const footer = (
-    <form action={signOutAction} className="mt-10 text-center">
-      <button className="text-sm text-muted-foreground underline underline-offset-4" type="submit">
-        Cerrar sesión
-      </button>
-    </form>
-  );
+  const [membership, me] = await Promise.all([getMembership(userId), db.user.findUnique({ where: { id: userId }, select: { why: true } })]);
 
   if (!membership) {
     return (
-      <Shell>
+      <AppShell>
         <section className={cardClass}>
           <h2 className="font-display text-2xl">Empieza con tu gente</h2>
           <p className="mt-2 text-muted-foreground">
@@ -62,53 +50,103 @@ export default async function HomePage() {
             </button>
           </form>
         </section>
-        {footer}
-      </Shell>
+      </AppShell>
     );
   }
 
   const today = checkInDay(new Date(), getAppTimeZone());
   const yesterday = addDays(today, -1);
-  const { members, myAnswers } = await loadGroupHome(userId, membership.groupId, today, HISTORY_DAYS);
+  const [{ members, myAnswers }, yesterdayOpen] = await Promise.all([loadGroupHome(userId, membership.groupId, today), isYesterdayOpen(today)]);
+  const self = members.find((member) => member.isMe)!;
   const streak = cleanStreak(myAnswers, today);
+  const best = longestStreak(myAnswers);
+  const rate = cleanRate(myAnswers, today);
+  const total = totalCleanDays(myAnswers);
+  const together = members.length > 1 ? groupStreak(members, yesterday) : 0;
+  const others = members.filter((member) => !member.isMe);
   const yesterdayMembers = members.filter((member) => member.joinedDay <= yesterday);
+  const missedYesterday = yesterdayOpen && self.joinedDay <= yesterday && !myAnswers.has(yesterday);
+  const pendingToday = others.filter((member) => !member.answers.has(today));
 
   return (
-    <Shell groupName={membership.group.name}>
+    <AppShell groupName={membership.group.name}>
+      {missedYesterday ? (
+        <section className={cn(cardClass, "mb-4 border-primary/40")}>
+          <p className="text-sm capitalize text-muted-foreground">{formatDay(yesterday)}</p>
+          <h2 className="mt-1 font-display text-2xl">¿Y ayer, te mantuviste?</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Se te pasó responder. Aún puedes, hasta que salga el reporte de la mañana.</p>
+          <CheckInButtons answer={undefined} changeable={false} day={yesterday} />
+        </section>
+      ) : null}
+
       <section className={cardClass}>
         <p className="text-sm capitalize text-muted-foreground">{formatDay(today)}</p>
         <h2 className="mt-1 font-display text-3xl">¿Te mantuviste hoy?</h2>
-        <CheckInButtons answer={myAnswers.get(today)} />
-        <p className="mt-5 border-t border-border pt-4 text-sm text-muted-foreground">
-          {streak > 0 ? (
-            <>
-              Racha: <span className="font-semibold text-foreground">{streak} {streak === 1 ? "día" : "días"}</span> limpio
-            </>
-          ) : (
-            "Hoy empieza tu racha."
-          )}
-        </p>
+        {me?.why ? <p className="mt-2 text-sm italic text-muted-foreground">“{me.why}”</p> : null}
+        <CheckInButtons answer={myAnswers.get(today)} day={today} note={self.notes.today} />
+        <div className="mt-5 border-t border-border pt-4">
+          <Sunrise streak={streak} />
+          <p className="mt-3 text-sm text-muted-foreground">
+            {streak > 0 ? (
+              <>
+                Racha: <span className="font-semibold text-foreground">{streak} {streak === 1 ? "día" : "días"}</span> limpio
+              </>
+            ) : (
+              "Hoy empieza tu racha."
+            )}
+          </p>
+          {rate !== null ? (
+            <dl className="mt-3 grid grid-cols-3 gap-2 text-center">
+              {[
+                { label: "limpios en total", value: total },
+                { label: "mejor racha", value: best },
+                { label: "de días limpios", value: `${Math.round(rate * 100)}%` },
+              ].map((stat) => (
+                <div className="flex flex-col-reverse rounded-2xl bg-white/5 px-2 py-3" key={stat.label}>
+                  <dt className="mt-0.5 text-xs leading-tight text-muted-foreground">{stat.label}</dt>
+                  <dd className="font-display text-2xl">{stat.value}</dd>
+                </div>
+              ))}
+            </dl>
+          ) : null}
+        </div>
       </section>
+
+      {others.length > 0 ? (
+        <section className={cn(cardClass, "mt-4")}>
+          <h2 className="font-medium">¿Momento difícil?</h2>
+          <p className="mt-1 mb-4 text-sm text-muted-foreground">Avísale a tu grupo antes de que pase, no después.</p>
+          <SosButton />
+        </section>
+      ) : null}
 
       {yesterdayMembers.length > 0 ? (
         <section className={cn(cardClass, "mt-4")}>
           <h2 className="font-medium">Ayer</h2>
-          <ul className="mt-3 grid gap-2">
+          <ul className="mt-3 grid gap-3">
             {yesterdayMembers.map((member) => {
               const status = statusOf(member.answers.get(yesterday));
               return (
-                <li className="flex items-center justify-between gap-3" key={member.id}>
-                  <span className="truncate">{member.isMe ? "Tú" : member.name}</span>
-                  <span
-                    className={cn(
-                      "shrink-0 rounded-full px-3 py-1 text-sm",
-                      status === "clean" && "bg-clean/15 text-clean",
-                      status === "relapsed" && "bg-relapse/15 text-relapse",
-                      status === "silent" && "bg-silent/15 text-muted-foreground",
-                    )}
-                  >
-                    {{ clean: "Se mantuvo", relapsed: "Recayó", silent: "No respondió" }[status]}
-                  </span>
+                <li key={member.id}>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="min-w-0 flex-1 truncate">{member.isMe ? "Tú" : member.name}</span>
+                    {!member.isMe ? <SignalButton kind="cheer" sent={member.cheered} toUserId={member.id} /> : null}
+                    <span
+                      className={cn(
+                        "shrink-0 rounded-full px-3 py-1 text-sm",
+                        status === "clean" && "bg-clean/15 text-clean",
+                        status === "relapsed" && "bg-relapse/15 text-relapse",
+                        status === "silent" && "bg-silent/15 text-muted-foreground",
+                      )}
+                    >
+                      {{ clean: "Se mantuvo", relapsed: "Recayó", silent: "No respondió" }[status]}
+                    </span>
+                  </div>
+                  {member.isMe && yesterdayOpen && status !== "silent" ? (
+                    <NoteEditor day={yesterday} note={member.notes.yesterday} />
+                  ) : member.notes.yesterday ? (
+                    <p className="mt-1 text-sm text-muted-foreground">“{member.notes.yesterday}”</p>
+                  ) : null}
                 </li>
               );
             })}
@@ -117,37 +155,33 @@ export default async function HomePage() {
       ) : null}
 
       <section className={cn(cardClass, "mt-4")}>
-        <h2 className="font-medium">Esta semana</h2>
+        <div className="flex items-baseline justify-between gap-3">
+          <h2 className="font-medium">Esta semana</h2>
+          {together > 0 ? (
+            <p className="text-sm text-primary">
+              🔥 {together} {together === 1 ? "día" : "días"} todos limpios
+            </p>
+          ) : null}
+        </div>
         <div className="mt-2">
           <GroupWeek days={daysEndingOn(today, HISTORY_DAYS)} members={members} today={today} />
         </div>
+        {pendingToday.length > 0 ? (
+          <ul className="mt-4 grid gap-2 border-t border-border pt-4">
+            {pendingToday.map((member) => (
+              <li className="flex items-center justify-between gap-3 text-sm" key={member.id}>
+                <span className="truncate text-muted-foreground">{member.name} aún no responde hoy</span>
+                <SignalButton kind="nudge" sent={member.nudged} toUserId={member.id} />
+              </li>
+            ))}
+          </ul>
+        ) : null}
         <div className="mt-4">
           <InviteLink code={membership.group.inviteCode} groupName={membership.group.name} />
         </div>
       </section>
 
-      <section className={cn(cardClass, "mt-4")}>
-        <h2 className="font-medium">Este dispositivo</h2>
-        <p className="mt-1 mb-4 text-sm text-muted-foreground">Te preguntamos cada noche y te contamos cómo le fue al grupo cada mañana.</p>
-        <DeviceSetup vapidPublicKey={getVapidPublicKey()} />
-      </section>
-      {footer}
-    </Shell>
-  );
-}
-
-function Shell({ children, groupName }: { children: React.ReactNode; groupName?: string }) {
-  return (
-    <main className="mx-auto w-full max-w-md px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(2rem,env(safe-area-inset-bottom))]">
-      <header className="mb-6 flex items-center gap-3">
-        {/* eslint-disable-next-line @next/next/no-img-element -- a tiny static SVG needs no optimization */}
-        <img alt="" className="size-9" src="/icons/icon-source.svg" />
-        <div className="min-w-0">
-          <h1 className="font-display text-xl leading-tight">Solo por hoy</h1>
-          {groupName ? <p className="truncate text-sm text-muted-foreground">{groupName}</p> : null}
-        </div>
-      </header>
-      {children}
-    </main>
+      <DeviceSetup hideWhenReady vapidPublicKey={getVapidPublicKey()} />
+    </AppShell>
   );
 }

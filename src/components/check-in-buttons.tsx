@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { answerToday } from "@/app/actions/check-in";
+import { answerDay } from "@/app/actions/check-in";
+import { NoteEditor } from "@/components/note-editor";
 import { cn } from "@/lib/cn";
+import type { DayKey } from "@/lib/days";
 
-/** Once answered here, tonight's question no longer needs to sit in the notification shade. */
+/** Once answered here, the question no longer needs to sit in the notification shade. */
 async function closePromptNotifications() {
   if (!("serviceWorker" in navigator)) return;
   const registration = await navigator.serviceWorker.getRegistration();
@@ -12,15 +14,21 @@ async function closePromptNotifications() {
   notifications.forEach((notification) => notification.close());
 }
 
-export function CheckInButtons({ answer }: { answer: boolean | undefined }) {
+/**
+ * Sí / No for a day, then the answer with an optional note. Today's answer can be changed until the day closes;
+ * a missed yesterday is answered once.
+ */
+export function CheckInButtons({ day, answer, note, changeable = true }: { day: DayKey; answer: boolean | undefined; note?: string; changeable?: boolean }) {
   const [pending, startTransition] = useTransition();
   const [changing, setChanging] = useState(false);
+  const [error, setError] = useState(false);
 
   function choose(relapsed: boolean) {
     startTransition(async () => {
-      await answerToday(relapsed);
+      const result = await answerDay(day, relapsed);
+      setError(!result.ok);
       setChanging(false);
-      void closePromptNotifications();
+      if (result.ok) void closePromptNotifications();
     });
   }
 
@@ -28,11 +36,14 @@ export function CheckInButtons({ answer }: { answer: boolean | undefined }) {
     return (
       <div className="mt-4">
         <p className={cn("text-lg font-medium", answer ? "text-relapse" : "text-clean")}>
-          {answer ? "Recaíste hoy. Mañana es otro día." : "Hoy te mantuviste. Un día más."}
+          {answer ? "Gracias por tu honestidad. Mañana empiezas de nuevo." : "Te mantuviste. Un día más."}
         </p>
-        <button className="mt-3 text-sm text-muted-foreground underline underline-offset-4" onClick={() => setChanging(true)} type="button">
-          Cambiar respuesta
-        </button>
+        <NoteEditor day={day} note={note} />
+        {changeable ? (
+          <button className="mt-3 text-sm text-muted-foreground underline underline-offset-4" onClick={() => setChanging(true)} type="button">
+            Cambiar respuesta
+          </button>
+        ) : null}
       </div>
     );
   }
@@ -55,6 +66,11 @@ export function CheckInButtons({ answer }: { answer: boolean | undefined }) {
       >
         No, recaí
       </button>
+      {error ? (
+        <p className="text-sm text-muted-foreground" role="status">
+          Ese día ya cerró. Recarga la página.
+        </p>
+      ) : null}
       {changing ? (
         <button className="text-sm text-muted-foreground underline underline-offset-4" onClick={() => setChanging(false)} type="button">
           Cancelar

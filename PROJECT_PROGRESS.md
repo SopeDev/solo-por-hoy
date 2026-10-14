@@ -18,10 +18,20 @@ Last updated: 2026-10-14
 - Rewrote the sign-in and first-run copy around shared accountability instead of describing the mechanics.
 - Installed on Android; a test notification arrived.
 - Reframed the nightly question as "¿Te mantuviste hoy?" (Sí, me mantuve / No, recaí) in the app and the notification.
+- Slice 2, support and settings:
+  - Settings page: nickname, private "porqué", device setup (now hidden from home once ready), sign out.
+  - Group admin: rename, remove members (replaces the invite link), new invite link, leave group with ownership handover.
+  - Optional note on each day's answer, shown to the group once the day closes.
+  - Missed yesterday can be answered until the morning report goes out.
+  - SOS to the group, one-tap encouragement, and reminders to whoever hasn't answered.
+  - Best streak and clean-day rate on home; streak milestones in the morning report.
+  - Migration `20261014000000_support_and_settings` checked against a local Postgres.
+  - Gamification: total clean days, group streak (everyone clean), and a sunrise that rises with the streak.
 - iPhone guidance: Share › “Agregar a inicio” install steps, an iOS 16.4+ note, and iOS settings path for blocked notifications.
 
 ## Next
 
 - Install on the second phone. On an iPhone, check that Google sign-in from the installed app comes back signed in, and that the nightly question and morning report arrive.
-- After a few days of use: adjust notification times and wording; consider a reminder for anyone who still hasn't answered later in the night.
+- After a few days of use: adjust notification times and wording; see whether SOS, encouragement and reminders get used.
+- Maybe later: fichas (chips) for milestones on a profile.
 - Later: communities by topic with groups inside them (create, invite, request to join), and daily messages.

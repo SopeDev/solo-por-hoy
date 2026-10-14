@@ -13,7 +13,7 @@ export default async function JoinPage({ params }: PageProps<"/unirse/[code]">) 
   const [group, current] = await Promise.all([
     db.group.findUnique({
       where: { inviteCode: code },
-      include: { memberships: { include: { user: { select: { name: true, email: true } } }, orderBy: { joinedAt: "asc" } } },
+      include: { memberships: { include: { user: { select: { name: true, email: true, nickname: true } } }, orderBy: { joinedAt: "asc" } } },
     }),
     getMembership(userId),
   ]);

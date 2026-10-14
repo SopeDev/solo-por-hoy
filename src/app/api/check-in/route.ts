@@ -1,11 +1,11 @@
 import { auth } from "@/auth";
-import { checkInDay, isDayKey } from "@/lib/days";
-import { getAppTimeZone } from "@/lib/env";
-import { saveCheckIn } from "@/lib/queries";
+import { isDayKey } from "@/lib/days";
+import { canAnswer, saveCheckIn } from "@/lib/queries";
 
 /**
  * Answers from the notification's Sí / No buttons (sent by the service worker with the session cookie). The day
- * comes with the notification, so an answer tapped after the day closed is refused instead of landing on the next.
+ * comes with the notification, so an answer tapped after the day closed is refused instead of landing on the next;
+ * last night's question still works the next morning if it wasn't answered and the report hasn't gone out.
  */
 export async function POST(request: Request) {
   const userId = (await auth())?.user?.id;
@@ -15,7 +15,7 @@ export async function POST(request: Request) {
 
   const body = (await request.json().catch(() => null)) as { day?: unknown; relapsed?: unknown } | null;
   if (!body || !isDayKey(body.day) || typeof body.relapsed !== "boolean") return Response.json({ error: "invalid" }, { status: 400 });
-  if (body.day !== checkInDay(new Date(), getAppTimeZone())) return Response.json({ error: "closed" }, { status: 409 });
+  if (!(await canAnswer(userId, body.day))) return Response.json({ error: "closed" }, { status: 409 });
 
   await saveCheckIn(userId, body.day, body.relapsed);
   return Response.json({ ok: true });

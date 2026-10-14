@@ -1,4 +1,4 @@
-// Solo por hoy service worker: shows the nightly question and the morning report, and answers the question
+// Solo por hoy service worker: shows the nightly question, the morning report and messages from the group, and answers the question
 // straight from the notification's buttons. Payloads are described by `PushPayload` in src/lib/push.ts.
 
 const ICON = "/icons/icon-192.png";
@@ -35,7 +35,7 @@ self.addEventListener("push", (event) => {
       body: data.body,
       icon: ICON,
       badge: BADGE,
-      tag: "report",
+      tag: data.tag || "report",
       data,
     }),
   );
