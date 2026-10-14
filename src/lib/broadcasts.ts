@@ -3,10 +3,11 @@ import "server-only";
 import { Prisma } from "@/generated/prisma/client";
 import { BroadcastKind } from "@/generated/prisma/enums";
 import { db } from "@/db/client";
-import { dayReport, displayName, reportMessage } from "./check-ins";
-import { addDays, checkInDay, dateOfDay, localDay, type DayKey } from "./days";
+import { cleanStreak, dayReport, displayName, groupStreak, isMilestone, reportMessage } from "./check-ins";
+import { addDays, checkInDay, dateOfDay, dayOfDate, localDay, type DayKey } from "./days";
 import { getAppTimeZone } from "./env";
 import { promptPayload, sendPush } from "./push";
+import { USER_NAME_FIELDS } from "./queries";
 
 const HOUR = 60 * 60;
 
@@ -46,10 +47,16 @@ export async function sendMorningReports(now: Date) {
   if (!(await claimBroadcast(BroadcastKind.MORNING_REPORT, day))) return { day, skipped: true };
 
   const groups = await db.group.findMany({
-    include: { memberships: { include: { user: { select: { id: true, name: true, email: true } } }, orderBy: { joinedAt: "asc" } } },
+    include: { memberships: { include: { user: { select: { id: true, ...USER_NAME_FIELDS } } }, orderBy: { joinedAt: "asc" } } },
   });
-  const checkIns = await db.checkIn.findMany({ where: { day: dateOfDay(day) }, select: { userId: true, relapsed: true } });
-  const answers = new Map(checkIns.map((checkIn) => [checkIn.userId, checkIn.relapsed]));
+  // Everyone's history up to yesterday, for yesterday's answers and the streaks it completed.
+  const checkIns = await db.checkIn.findMany({ where: { day: { lte: dateOfDay(day) } }, select: { userId: true, day: true, relapsed: true } });
+  const history = new Map<string, Map<DayKey, boolean>>();
+  for (const checkIn of checkIns) {
+    if (!history.has(checkIn.userId)) history.set(checkIn.userId, new Map());
+    history.get(checkIn.userId)!.set(dayOfDate(checkIn.day), checkIn.relapsed);
+  }
+  const answerOf = (userId: string) => history.get(userId)?.get(day);
 
   let sent = 0;
   let failed = 0;
@@ -58,10 +65,18 @@ export async function sendMorningReports(now: Date) {
     const members = group.memberships.filter((membership) => checkInDay(membership.joinedAt, timeZone) <= day);
     if (members.length === 0) continue;
 
-    const report = dayReport(members.map((membership) => ({ name: displayName(membership.user), answer: answers.get(membership.userId) })));
+    const report = dayReport(members.map((membership) => ({ name: displayName(membership.user), answer: answerOf(membership.userId) })));
+    const milestones = members
+      .filter((membership) => answerOf(membership.userId) === false)
+      .map((membership) => ({ name: displayName(membership.user), streak: cleanStreak(history.get(membership.userId)!, day) }))
+      .filter((member) => isMilestone(member.streak));
+    const streak = groupStreak(
+      members.map((membership) => ({ joinedDay: checkInDay(membership.joinedAt, timeZone), answers: history.get(membership.userId) ?? new Map() })),
+      day,
+    );
     const result = await sendPush(
       members.map((membership) => membership.userId),
-      { type: "report", title: `Ayer en ${group.name}`, body: reportMessage(report) },
+      { type: "report", title: `Ayer en ${group.name}`, body: reportMessage(report, { milestones, groupStreak: members.length > 1 ? streak : 0 }) },
       { ttl: 12 * HOUR, topic: "report" },
     );
     sent += result.sent;

@@ -24,8 +24,11 @@ function isIos() {
   return /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
 }
 
-/** This phone: installing the app and turning on the nightly question and morning report. */
-export function DeviceSetup({ vapidPublicKey }: { vapidPublicKey: string | null }) {
+/**
+ * This phone: installing the app and turning on the nightly question and morning report. With `hideWhenReady` (the
+ * home screen) the card disappears once the app is installed and reminders are on; settings always shows it.
+ */
+export function DeviceSetup({ vapidPublicKey, hideWhenReady = false }: { vapidPublicKey: string | null; hideWhenReady?: boolean }) {
   const [push, setPush] = useState<PushState>("loading");
   const [installed, setInstalled] = useState(true);
   const [ios, setIos] = useState(false);
@@ -109,57 +112,63 @@ export function DeviceSetup({ vapidPublicKey }: { vapidPublicKey: string | null 
     setInstallPrompt(null);
   }
 
+  if (hideWhenReady && (push === "loading" || (push === "on" && installed))) return null;
+
   return (
-    <div className="grid gap-3">
-      {!installed ? (
-        ios ? (
+    <section className="mt-4 rounded-3xl border border-border bg-surface p-5">
+      <h2 className="font-medium">Este dispositivo</h2>
+      <p className="mt-1 mb-4 text-sm text-muted-foreground">Te preguntamos cada noche y te contamos cómo le fue al grupo cada mañana.</p>
+      <div className="grid gap-3">
+        {!installed ? (
+          ios ? (
+            <p className="text-sm text-muted-foreground">
+              Para recibir los recordatorios en tu iPhone, instálala: toca Compartir (el cuadro con la flecha hacia arriba), elige “Agregar a inicio” y
+              ábrela desde tu pantalla de inicio.
+            </p>
+          ) : installPrompt ? (
+            <button className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-border px-4 font-medium transition hover:bg-white/5" onClick={install} type="button">
+              <Download aria-hidden size={18} /> Instalar la app
+            </button>
+          ) : (
+            <p className="text-sm text-muted-foreground">Para instalarla, abre el menú ⋮ de Chrome y elige “Instalar app” o “Agregar a la pantalla principal”.</p>
+          )
+        ) : null}
+
+        {push === "unsupported" && !ios ? <p className="text-sm text-muted-foreground">Este navegador no admite notificaciones. Abre la app en Chrome en tu Android.</p> : null}
+        {push === "unsupported" && ios && installed ? <p className="text-sm text-muted-foreground">Para recibir notificaciones, tu iPhone necesita iOS 16.4 o más reciente.</p> : null}
+        {push !== "unsupported" && push !== "loading" && !vapidPublicKey ? <p className="text-sm text-muted-foreground">Las notificaciones aún no están configuradas en el servidor.</p> : null}
+        {push === "denied" ? (
           <p className="text-sm text-muted-foreground">
-            Para recibir los recordatorios en tu iPhone, instálala: toca Compartir (el cuadro con la flecha hacia arriba), elige “Agregar a inicio” y
-            ábrela desde tu pantalla de inicio.
+            {ios
+              ? "Bloqueaste las notificaciones. Actívalas en Ajustes › Notificaciones › Solo por hoy y vuelve aquí."
+              : "Bloqueaste las notificaciones. Actívalas en los ajustes del sitio (🔒 junto a la dirección) y vuelve aquí."}
           </p>
-        ) : installPrompt ? (
-          <button className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-border px-4 font-medium transition hover:bg-white/5" onClick={install} type="button">
-            <Download aria-hidden size={18} /> Instalar la app
+        ) : null}
+
+        {push === "off" && vapidPublicKey ? (
+          <button className="flex min-h-12 items-center justify-center gap-2 rounded-xl bg-primary px-4 font-semibold text-primary-foreground transition hover:brightness-110 disabled:opacity-60" disabled={pending} onClick={enable} type="button">
+            <Bell aria-hidden size={18} /> Activar recordatorios
           </button>
-        ) : (
-          <p className="text-sm text-muted-foreground">Para instalarla, abre el menú ⋮ de Chrome y elige “Instalar app” o “Agregar a la pantalla principal”.</p>
-        )
-      ) : null}
+        ) : null}
 
-      {push === "unsupported" && !ios ? <p className="text-sm text-muted-foreground">Este navegador no admite notificaciones. Abre la app en Chrome en tu Android.</p> : null}
-      {push === "unsupported" && ios && installed ? <p className="text-sm text-muted-foreground">Para recibir notificaciones, tu iPhone necesita iOS 16.4 o más reciente.</p> : null}
-      {push !== "unsupported" && push !== "loading" && !vapidPublicKey ? <p className="text-sm text-muted-foreground">Las notificaciones aún no están configuradas en el servidor.</p> : null}
-      {push === "denied" ? (
-        <p className="text-sm text-muted-foreground">
-          {ios
-            ? "Bloqueaste las notificaciones. Actívalas en Ajustes › Notificaciones › Solo por hoy y vuelve aquí."
-            : "Bloqueaste las notificaciones. Actívalas en los ajustes del sitio (🔒 junto a la dirección) y vuelve aquí."}
-        </p>
-      ) : null}
+        {push === "on" ? (
+          <>
+            <p className="flex items-center gap-2 text-sm text-clean">
+              <Bell aria-hidden size={16} /> Recordatorios activados en este dispositivo.
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <button className="min-h-11 rounded-xl border border-border px-3 text-sm font-medium transition hover:bg-white/5 disabled:opacity-60" disabled={pending} onClick={test} type="button">
+                Enviar prueba
+              </button>
+              <button className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-border px-3 text-sm text-muted-foreground transition hover:bg-white/5 disabled:opacity-60" disabled={pending} onClick={disable} type="button">
+                <BellOff aria-hidden size={16} /> Desactivar
+              </button>
+            </div>
+          </>
+        ) : null}
 
-      {push === "off" && vapidPublicKey ? (
-        <button className="flex min-h-12 items-center justify-center gap-2 rounded-xl bg-primary px-4 font-semibold text-primary-foreground transition hover:brightness-110 disabled:opacity-60" disabled={pending} onClick={enable} type="button">
-          <Bell aria-hidden size={18} /> Activar recordatorios
-        </button>
-      ) : null}
-
-      {push === "on" ? (
-        <>
-          <p className="flex items-center gap-2 text-sm text-clean">
-            <Bell aria-hidden size={16} /> Recordatorios activados en este dispositivo.
-          </p>
-          <div className="grid grid-cols-2 gap-3">
-            <button className="min-h-11 rounded-xl border border-border px-3 text-sm font-medium transition hover:bg-white/5 disabled:opacity-60" disabled={pending} onClick={test} type="button">
-              Enviar prueba
-            </button>
-            <button className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-border px-3 text-sm text-muted-foreground transition hover:bg-white/5 disabled:opacity-60" disabled={pending} onClick={disable} type="button">
-              <BellOff aria-hidden size={16} /> Desactivar
-            </button>
-          </div>
-        </>
-      ) : null}
-
-      {message ? <p className="text-sm text-muted-foreground" role="status">{message}</p> : null}
-    </div>
+        {message ? <p className="text-sm text-muted-foreground" role="status">{message}</p> : null}
+      </div>
+    </section>
   );
 }

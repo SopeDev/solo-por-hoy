@@ -14,9 +14,22 @@ enum BroadcastKind {
   @@map("broadcast_kind")
 }
 
+/// Person-to-person pushes: a call for support to the whole group, encouragement, or a reminder to answer.
+enum SignalKind {
+  SOS
+  CHEER
+  NUDGE
+
+  @@map("signal_kind")
+}
+
 model User {
   id                String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name              String?            @map("display_name")
+  /// What the group calls this person; falls back to the first name from Google.
+  nickname          String?
+  /// A short personal reason to stay clean, shown only to this person under the nightly question.
+  why               String?
   email             String?            @unique
   emailVerified     DateTime?          @map("email_verified") @db.Timestamptz(6)
   image             String?
@@ -28,6 +41,8 @@ model User {
   groupsCreated     Group[]
   checkIns          CheckIn[]
   pushSubscriptions PushSubscription[]
+  signalsSent       Signal[]           @relation("SignalsSent")
+  signalsReceived   Signal[]           @relation("SignalsReceived")
 
   @@map("users")
 }
@@ -102,7 +117,7 @@ model Membership {
   @@map("memberships")
 }
 
-/// One answer per person per day to "¿Recaíste hoy?". A day with no row is a day without an answer. Check-ins belong
+/// One answer per person per day to "¿Te mantuviste hoy?". A day with no row is a day without an answer. Check-ins belong
 /// to the person, not the group, so they follow them to any group.
 model CheckIn {
   id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
@@ -110,6 +125,8 @@ model CheckIn {
   /// The day answered for (see `checkInDay`: the night after midnight still counts as the day before).
   day        DateTime @db.Date
   relapsed   Boolean
+  /// Optional words about the day; the group sees them once the day closes, like the answer.
+  note       String?
   answeredAt DateTime @default(now()) @map("answered_at") @db.Timestamptz(6)
   updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -141,4 +158,22 @@ model Broadcast {
 
   @@unique([kind, day])
   @@map("broadcasts")
+}
+
+/// A push one person sent: an SOS to their group, or encouragement or a reminder to one person. Kept to limit how
+/// often each can be sent.
+model Signal {
+  id         String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  kind       SignalKind
+  fromUserId String     @map("from_user_id") @db.Uuid
+  /// Null for an SOS, which goes to the whole group.
+  toUserId   String?    @map("to_user_id") @db.Uuid
+  /// The check-in day it was sent on.
+  day        DateTime   @db.Date
+  createdAt  DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  from       User       @relation("SignalsSent", fields: [fromUserId], references: [id], onDelete: Cascade)
+  to         User?      @relation("SignalsReceived", fields: [toUserId], references: [id], onDelete: Cascade)
+
+  @@index([fromUserId, day])
+  @@map("signals")
 }
