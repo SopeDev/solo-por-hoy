@@ -25,6 +25,12 @@ export async function isYesterdayOpen(today: DayKey) {
   return !report;
 }
 
+/** Reminders between people only make sense once tonight's question has gone out. */
+export async function isNightlyPromptSent(today: DayKey) {
+  const prompt = await db.broadcast.findUnique({ where: { kind_day: { kind: BroadcastKind.NIGHTLY_PROMPT, day: dateOfDay(today) } }, select: { id: true } });
+  return Boolean(prompt);
+}
+
 export function getCheckIn(userId: string, day: DayKey) {
   return db.checkIn.findUnique({ where: { userId_day: { userId, day: dateOfDay(day) } } });
 }
