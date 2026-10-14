@@ -45,7 +45,7 @@ export function CheckInButtons({ answer }: { answer: boolean | undefined }) {
         onClick={() => choose(false)}
         type="button"
       >
-        No, me mantuve
+        Sí, me mantuve
       </button>
       <button
         className="min-h-14 rounded-2xl border border-relapse/50 bg-relapse/10 px-4 text-lg font-semibold text-relapse transition active:scale-[.98] disabled:opacity-60"
@@ -53,7 +53,7 @@ export function CheckInButtons({ answer }: { answer: boolean | undefined }) {
         onClick={() => choose(true)}
         type="button"
       >
-        Sí, recaí
+        No, recaí
       </button>
       {changing ? (
         <button className="text-sm text-muted-foreground underline underline-offset-4" onClick={() => setChanging(false)} type="button">

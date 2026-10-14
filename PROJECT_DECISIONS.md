@@ -1,10 +1,10 @@
 # Project Decisions
 
-Last updated: 2026-10-12
+Last updated: 2026-10-14
 
 ## Product scope
 
-- Solo por hoy is an accountability app for people trying to stop a habit, used in a small group. Every night it asks "¿Recaíste hoy?"; each person answers Sí, No, or nothing. The next morning everyone in the group is told how each person did.
+- Solo por hoy is an accountability app for people trying to stop a habit, used in a small group. Every night it asks "¿Te mantuviste hoy?"; each person answers Sí (clean), No (relapsed), or nothing. The question is framed around staying clean, not around failing. The next morning everyone in the group is told how each person did.
 - Delivered as a mobile-first installable PWA, targeting Android (Chrome) first, deployed to Vercel. iPhones (iOS 16.4+) are supported once the app is added to the home screen, which is the only way iOS allows web notifications; iOS shows no notification buttons, so tapping the nightly question opens the app to answer.
 - MVP: two friends in one group. Communities by topic (alcohol, drugs, porn, …) holding groups people create, invite to, or request to join, and daily messages (stoicism, self-development), are planned for later; the schema keeps groups separate from check-ins so they can be added without moving data.
 - The interface is Spanish only for now; there is no i18n layer yet.
@@ -22,7 +22,7 @@ Last updated: 2026-10-12
 - A check-in made before 05:00 (`DAY_ROLLOVER_HOUR`) counts for the day before, so a late answer after midnight is about the night that just ended. An answer to a notification is for the day the notification asked about; once that day has closed it's refused (409) and the app opens instead.
 - The morning report is about the calendar day before the morning it runs.
 - Someone who joined on a day isn't counted in reports for earlier days, and the week grid leaves those days blank.
-- Clean streak: consecutive days answered No, ending today, or ending yesterday while today is unanswered. A relapse or an unanswered day ends it.
+- Clean streak: consecutive clean days, ending today, or ending yesterday while today is unanswered. A relapse or an unanswered day ends it.
 
 ## Privacy
 
@@ -32,7 +32,7 @@ Last updated: 2026-10-12
 ## Notifications
 
 - Web Push (VAPID) through a hand-written service worker (`public/sw.js`), served with no caching.
-- The nightly prompt has "No, me mantuve" and "Sí, recaí" buttons. The service worker posts the answer to `/api/check-in` with the session cookie and shows a confirmation; if that fails (signed out, day closed, offline) it opens the app. Sessions last 180 days for this reason.
+- The nightly prompt has "Sí, me mantuve" and "No, recaí" buttons. The service worker posts the answer to `/api/check-in` with the session cookie and shows a confirmation; if that fails (signed out, day closed, offline) it opens the app. Sessions last 180 days for this reason.
 - The nightly prompt goes only to people who haven't answered that day. It's kept by the push service for 10 hours, the report for 12, and a newer undelivered message replaces an older one of the same kind.
 - Times: Vercel Cron in UTC (`vercel.json`): nightly at 04:00 UTC (21:00 in Tijuana in summer, 20:00 in winter) and morning at 15:00 UTC (08:00 summer, 07:00 winter). On the Hobby plan a cron can fire any time within its hour. Cron routes require `Authorization: Bearer $CRON_SECRET`.
 - "Enviar prueba" sends tonight's question to the person's own devices to check reminders work end to end.
