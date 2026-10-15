@@ -3,11 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/db/client";
 import { requireActionUserId } from "@/lib/auth-user";
-import { displayName } from "@/lib/check-ins";
-import { checkInDay, dateOfDay } from "@/lib/days";
+import { cheerMessage, displayName, statusOf } from "@/lib/check-ins";
+import { addDays, checkInDay, dateOfDay } from "@/lib/days";
 import { getAppTimeZone } from "@/lib/env";
 import { promptPayload, sendPush } from "@/lib/push";
-import { getMembership, isNightlyPromptSent, USER_NAME_FIELDS } from "@/lib/queries";
+import { getCheckIn, getMembership, isNightlyPromptSent, isYesterdayOpen, USER_NAME_FIELDS } from "@/lib/queries";
 
 const HOUR = 60 * 60;
 const SOS_COOLDOWN_MS = 30 * 60 * 1000;
@@ -49,17 +49,22 @@ export async function sendSos(): Promise<Result> {
   return { ok: true };
 }
 
-/** A one-tap "ánimo" to someone in the group, once a day per person. */
+/** A one-tap message to someone in the group, fitted to how their yesterday went. Once a day per person. */
 export async function sendCheer(toUserId: string): Promise<Result> {
   const userId = await requireActionUserId();
   const { name, membership } = await sender(userId);
   if (!membership || !(await isGroupmate(membership.groupId, userId, toUserId))) return { ok: false, reason: "invalid" };
 
-  const day = dateOfDay(checkInDay(new Date(), getAppTimeZone()));
+  const today = checkInDay(new Date(), getAppTimeZone());
+  const day = dateOfDay(today);
   if (await db.signal.findFirst({ where: { fromUserId: userId, toUserId, kind: "CHEER", day } })) return { ok: false, reason: "limit" };
 
+  // Decided here from their answer, not by the sender's screen, which may be out of date.
+  const [yesterday, yesterdayOpen] = await Promise.all([getCheckIn(toUserId, addDays(today, -1)), isYesterdayOpen(today)]);
+  const message = cheerMessage(name, statusOf(yesterday?.relapsed), yesterdayOpen);
+
   await db.signal.create({ data: { kind: "CHEER", fromUserId: userId, toUserId, day } });
-  await sendPush([toUserId], { type: "message", title: `${name} te manda ánimo 💪`, body: "Solo por hoy.", tag: `cheer-${userId}` }, { ttl: 12 * HOUR, topic: "cheer" });
+  await sendPush([toUserId], { type: "message", ...message, tag: `cheer-${userId}` }, { ttl: 12 * HOUR, topic: "cheer" });
   revalidatePath("/");
   return { ok: true };
 }

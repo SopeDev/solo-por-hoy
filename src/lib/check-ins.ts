@@ -90,6 +90,23 @@ export function milestoneLabel(streak: number) {
   return `${streak} días`;
 }
 
+/**
+ * The one-tap message to someone in the group, chosen by how their yesterday went: congratulations after a clean
+ * day, encouragement after a relapse, and a check-in (not a nag) after no answer, which can point them to the
+ * still-open yesterday.
+ */
+export const CHEER = {
+  clean: { icon: "👏", action: "Felicitar", title: (from: string) => `${from} te felicita por ayer 👏`, body: "Un día más." },
+  relapsed: { icon: "💪", action: "Mandar ánimo", title: (from: string) => `${from} te manda ánimo 💪`, body: "Hoy es un día nuevo." },
+  silent: { icon: "💛", action: "Preguntar cómo va", title: (from: string) => `${from} pensó en ti 💛`, body: "¿Cómo vas?" },
+} satisfies Record<DayStatus, { icon: string; action: string; title: (from: string) => string; body: string }>;
+
+export function cheerMessage(from: string, status: DayStatus, yesterdayOpen: boolean) {
+  const cheer = CHEER[status];
+  const body = status === "silent" && yesterdayOpen ? `${cheer.body} Aún puedes responder lo de ayer.` : cheer.body;
+  return { title: cheer.title(from), body };
+}
+
 export type ReportMember = { name: string; answer: boolean | undefined };
 
 export type DayReport = Record<DayStatus, string[]>;

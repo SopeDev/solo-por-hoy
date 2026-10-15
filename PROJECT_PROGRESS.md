@@ -28,6 +28,7 @@ Last updated: 2026-10-14
   - Migration `20261014000000_support_and_settings` checked against a local Postgres.
   - Gamification: total clean days, group streak (everyone clean), and a sunrise that rises with the streak.
 - Home polish after first use: redrawn sunrise with the streak in it, clean-day rate no longer counts unanswered today, "Recordarle" only after tonight's question, icon-only encouragement, compact SOS row.
+- The one-tap message fits how the person's yesterday went: 👏 clean, 💪 relapse, 💛 no answer.
 - iPhone guidance: Share › “Agregar a inicio” install steps, an iOS 16.4+ note, and iOS settings path for blocked notifications.
 
 ## Next
