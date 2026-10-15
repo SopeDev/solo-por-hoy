@@ -3,6 +3,7 @@
 import { HandHeart } from "lucide-react";
 import { useState, useTransition } from "react";
 import { sendCheer, sendNudge, sendSos } from "@/app/actions/support";
+import { CHEER, type DayStatus } from "@/lib/check-ins";
 import { cn } from "@/lib/cn";
 
 /** "Necesito apoyo": asks before sending, since it buzzes everyone's phone right away. */
@@ -47,8 +48,11 @@ export function SosButton() {
   );
 }
 
-/** A one-tap push to one person: encouragement, or a reminder to answer today. */
-export function SignalButton({ kind, toUserId, toName, sent }: { kind: "cheer" | "nudge"; toUserId: string; toName: string; sent: boolean }) {
+/**
+ * A one-tap push to one person: a message fitted to how their yesterday went (`status`), or a reminder to answer
+ * today.
+ */
+export function SignalButton({ kind, toUserId, toName, sent, status = "clean" }: { kind: "cheer" | "nudge"; toUserId: string; toName: string; sent: boolean; status?: DayStatus }) {
   const [done, setDone] = useState(sent);
   const [pending, startTransition] = useTransition();
 
@@ -60,7 +64,8 @@ export function SignalButton({ kind, toUserId, toName, sent }: { kind: "cheer" |
   }
 
   if (kind === "cheer") {
-    const label = done ? `Ya le mandaste ánimo a ${toName}` : `Mandar ánimo a ${toName}`;
+    const cheer = CHEER[status];
+    const label = done ? `Ya le escribiste a ${toName} hoy` : `${cheer.action} a ${toName}`;
     return (
       <button
         aria-label={label}
@@ -70,7 +75,7 @@ export function SignalButton({ kind, toUserId, toName, sent }: { kind: "cheer" |
         title={label}
         type="button"
       >
-        <span aria-hidden>💪</span>
+        <span aria-hidden>{cheer.icon}</span>
       </button>
     );
   }

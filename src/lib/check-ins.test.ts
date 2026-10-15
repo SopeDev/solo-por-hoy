@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { cleanRate, cleanStreak, dayReport, displayName, groupStreak, isMilestone, joinNames, longestStreak, milestoneLabel, reportMessage, totalCleanDays } from "./check-ins";
+import { cheerMessage, cleanRate, cleanStreak, dayReport, displayName, groupStreak, isMilestone, joinNames, longestStreak, milestoneLabel, reportMessage, totalCleanDays } from "./check-ins";
 
 describe("cleanStreak", () => {
   const answers = (entries: Record<string, boolean>) => new Map(Object.entries(entries));
@@ -98,6 +98,13 @@ describe("progress", () => {
     const silent = { joinedDay: "2026-10-01", answers: answers({ "2026-10-02": false, "2026-10-04": false }) };
     assert.equal(groupStreak([ana, silent], "2026-10-04"), 1);
     assert.equal(groupStreak([], "2026-10-04"), 0);
+  });
+
+  it("fits the one-tap message to how yesterday went", () => {
+    assert.deepEqual(cheerMessage("Jorge", "clean", true), { title: "Jorge te felicita por ayer 👏", body: "Un día más." });
+    assert.deepEqual(cheerMessage("Jorge", "relapsed", true), { title: "Jorge te manda ánimo 💪", body: "Hoy es un día nuevo." });
+    assert.equal(cheerMessage("Jorge", "silent", true).body, "¿Cómo vas? Aún puedes responder lo de ayer.");
+    assert.equal(cheerMessage("Jorge", "silent", false).body, "¿Cómo vas?");
   });
 
   it("prefers the nickname", () => {

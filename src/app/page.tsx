@@ -124,7 +124,7 @@ export default async function HomePage() {
                 <li key={member.id}>
                   <div className="flex items-center justify-between gap-3">
                     <span className="min-w-0 flex-1 truncate">{member.isMe ? "Tú" : member.name}</span>
-                    {!member.isMe ? <SignalButton kind="cheer" sent={member.cheered} toName={member.name} toUserId={member.id} /> : null}
+                    {!member.isMe ? <SignalButton kind="cheer" sent={member.cheered} status={status} toName={member.name} toUserId={member.id} /> : null}
                     <span
                       className={cn(
                         "shrink-0 rounded-full px-3 py-1 text-sm",
