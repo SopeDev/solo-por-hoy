@@ -6,7 +6,9 @@ import { z } from "zod";
 import { db } from "@/db/client";
 import { requireActionUserId } from "@/lib/auth-user";
 import { newInviteCode } from "@/lib/invite-code";
-import { getMembership } from "@/lib/queries";
+import { addDays, checkInDay, isDayKey } from "@/lib/days";
+import { getAppTimeZone } from "@/lib/env";
+import { CORRECTION_DAYS, getMembership, saveCorrection } from "@/lib/queries";
 
 const groupName = z.string().trim().min(1).max(40);
 
@@ -91,4 +93,30 @@ export async function removeMember(memberId: string) {
     db.group.update({ where: { id: groupId }, data: { inviteCode: newInviteCode() } }),
   ]);
   revalidatePath("/", "layout");
+}
+
+/**
+ * Records or corrects someone's answer for a closed day, e.g. when they forgot to answer and said so. Only for days
+ * since they joined and within the last 30; the answer is marked as corrected.
+ */
+export async function correctCheckIn(formData: FormData) {
+  const { userId, groupId } = await requireOwnGroup();
+  const memberId = String(formData.get("member") ?? "");
+  const day = String(formData.get("day") ?? "");
+  const answer = formData.get("answer");
+
+  const today = checkInDay(new Date(), getAppTimeZone());
+  const membership = await db.membership.findUnique({ where: { groupId_userId: { groupId, userId: memberId } } });
+  const valid =
+    membership &&
+    isDayKey(day) &&
+    (answer === "clean" || answer === "relapsed") &&
+    day < today &&
+    day >= addDays(today, -CORRECTION_DAYS) &&
+    day >= checkInDay(membership.joinedAt, getAppTimeZone());
+  if (!valid) redirect("/ajustes?correccion=error");
+
+  await saveCorrection(memberId, day, answer === "relapsed", userId);
+  revalidatePath("/", "layout");
+  redirect("/ajustes?correccion=ok");
 }

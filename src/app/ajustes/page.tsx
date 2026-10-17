@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { signOut } from "@/auth";
-import { leaveGroup, removeMember, renameGroup, resetInviteCode } from "@/app/actions/groups";
+import { correctCheckIn, leaveGroup, removeMember, renameGroup, resetInviteCode } from "@/app/actions/groups";
 import { saveProfile } from "@/app/actions/profile";
 import { AppShell, cardClass, inputClass } from "@/components/app-shell";
 import { ConfirmSubmit } from "@/components/confirm-submit";
@@ -10,22 +10,27 @@ import { db } from "@/db/client";
 import { requireUserId } from "@/lib/auth-user";
 import { displayName } from "@/lib/check-ins";
 import { cn } from "@/lib/cn";
-import { getVapidPublicKey } from "@/lib/env";
-import { getGroupMembers, getMembership } from "@/lib/queries";
+import { addDays, checkInDay, formatDay } from "@/lib/days";
+import { getAppTimeZone, getVapidPublicKey } from "@/lib/env";
+import { CORRECTION_DAYS, getGroupMembers, getMembership } from "@/lib/queries";
 
 export const metadata: Metadata = { title: "Ajustes · Solo por hoy" };
 
 const linkButtonClass = "text-sm text-muted-foreground underline underline-offset-4";
 const secondaryButtonClass = "min-h-11 rounded-xl border border-border px-4 text-sm font-medium transition hover:bg-white/5";
 
-export default async function SettingsPage() {
+export default async function SettingsPage({ searchParams }: PageProps<"/ajustes">) {
   const userId = await requireUserId("/ajustes");
+  const { correccion } = await searchParams;
   const [user, membership] = await Promise.all([
     db.user.findUniqueOrThrow({ where: { id: userId }, select: { name: true, email: true, nickname: true, why: true } }),
     getMembership(userId),
   ]);
   const members = membership ? await getGroupMembers(membership.groupId) : [];
   const isOwner = membership?.group.createdById === userId;
+  const today = checkInDay(new Date(), getAppTimeZone());
+  const correctableDays = Array.from({ length: CORRECTION_DAYS }, (_, index) => addDays(today, -(index + 1)));
+  const othersFirst = [...members.filter((member) => member.id !== userId), ...members.filter((member) => member.id === userId)];
 
   async function signOutAction() {
     "use server";
@@ -108,6 +113,53 @@ export default async function SettingsPage() {
               />
             </form>
           </div>
+        </section>
+      ) : null}
+
+      {membership && isOwner ? (
+        <section className={cn(cardClass, "mt-4")} id="corregir">
+          <h2 className="font-medium">Corregir un día</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Si alguien olvidó responder o se equivocó, anota la respuesta que te dio. El grupo verá que fue corregida.
+          </p>
+          <form action={correctCheckIn} className="mt-4 grid gap-3">
+            <select aria-label="Persona" className={inputClass} defaultValue={othersFirst[0]?.id} name="member">
+              {othersFirst.map((member) => (
+                <option key={member.id} value={member.id}>
+                  {member.id === userId ? "Tú" : member.name}
+                </option>
+              ))}
+            </select>
+            <select aria-label="Día" className={cn(inputClass, "capitalize")} defaultValue={correctableDays[0]} name="day">
+              {correctableDays.map((day, index) => (
+                <option key={day} value={day}>
+                  {index === 0 ? `Ayer, ${formatDay(day)}` : formatDay(day)}
+                </option>
+              ))}
+            </select>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-border px-3 has-checked:border-clean has-checked:bg-clean/10 has-checked:text-clean">
+                <input className="sr-only" defaultChecked name="answer" type="radio" value="clean" />
+                Se mantuvo
+              </label>
+              <label className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-border px-3 has-checked:border-relapse has-checked:bg-relapse/10 has-checked:text-relapse">
+                <input className="sr-only" name="answer" type="radio" value="relapsed" />
+                Recayó
+              </label>
+            </div>
+            <button className={secondaryButtonClass} type="submit">
+              Guardar corrección
+            </button>
+            {correccion === "ok" ? (
+              <p className="text-sm text-clean" role="status">
+                Listo, quedó anotado.
+              </p>
+            ) : correccion === "error" ? (
+              <p className="text-sm text-relapse" role="status">
+                No se pudo: ese día es de antes de que se uniera, o aún está abierto.
+              </p>
+            ) : null}
+          </form>
         </section>
       ) : null}
 

@@ -54,12 +54,26 @@ export async function canWriteNote(userId: string, day: DayKey, now = new Date()
   return day === addDays(today, -1) && (await isYesterdayOpen(today));
 }
 
+/** The person's own answer; it replaces any correction the group's creator made for that day. */
 export async function saveCheckIn(userId: string, day: DayKey, relapsed: boolean) {
   const date = dateOfDay(day);
   await db.checkIn.upsert({
     where: { userId_day: { userId, day: date } },
     create: { userId, day: date, relapsed },
-    update: { relapsed },
+    update: { relapsed, correctedById: null },
+  });
+}
+
+/** How far back the group's creator can record or correct an answer. */
+export const CORRECTION_DAYS = 30;
+
+/** An answer recorded by the group's creator for someone else's closed day, marked as corrected. */
+export async function saveCorrection(userId: string, day: DayKey, relapsed: boolean, correctedById: string) {
+  const date = dateOfDay(day);
+  await db.checkIn.upsert({
+    where: { userId_day: { userId, day: date } },
+    create: { userId, day: date, relapsed, correctedById },
+    update: { relapsed, correctedById },
   });
 }
 
@@ -88,15 +102,17 @@ export async function loadGroupHome(userId: string, groupId: string, today: DayK
 
   const [history, sentToday] = await Promise.all([
     // A check-in is a few bytes and a small group has a few hundred a year, so the whole history is cheap.
-    db.checkIn.findMany({ where: { userId: { in: memberIds }, day: { lte: dateOfDay(today) } }, select: { userId: true, day: true, relapsed: true, note: true } }),
+    db.checkIn.findMany({ where: { userId: { in: memberIds }, day: { lte: dateOfDay(today) } }, select: { userId: true, day: true, relapsed: true, note: true, correctedById: true } }),
     db.signal.findMany({ where: { fromUserId: userId, day: dateOfDay(today), toUserId: { not: null } }, select: { kind: true, toUserId: true } }),
   ]);
 
   const answersByUser = new Map<string, Map<DayKey, boolean>>(memberIds.map((id) => [id, new Map()]));
+  const correctedByUser = new Map<string, Set<DayKey>>(memberIds.map((id) => [id, new Set()]));
   const notesByUser = new Map<string, { today?: string; yesterday?: string }>();
   for (const checkIn of history) {
     const day = dayOfDate(checkIn.day);
     answersByUser.get(checkIn.userId)!.set(day, checkIn.relapsed);
+    if (checkIn.correctedById) correctedByUser.get(checkIn.userId)!.add(day);
     if (!checkIn.note) continue;
     const notes = notesByUser.get(checkIn.userId) ?? {};
     // Others' notes for today stay private until the day closes, like their answers.
@@ -112,6 +128,7 @@ export async function loadGroupHome(userId: string, groupId: string, today: DayK
       isMe: member.userId === userId,
       joinedDay: checkInDay(member.joinedAt, getAppTimeZone()),
       answers: answersByUser.get(member.userId)!,
+      corrected: correctedByUser.get(member.userId)!,
       notes: notesByUser.get(member.userId) ?? {},
       cheered: sentToday.some((signal) => signal.kind === "CHEER" && signal.toUserId === member.userId),
       nudged: sentToday.some((signal) => signal.kind === "NUDGE" && signal.toUserId === member.userId),

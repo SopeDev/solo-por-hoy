@@ -134,6 +134,7 @@ export default async function HomePage() {
                       )}
                     >
                       {{ clean: "Se mantuvo", relapsed: "Recayó", silent: "No respondió" }[status]}
+                      {member.corrected.has(yesterday) ? <span className="ml-1 text-xs opacity-70">· corregido</span> : null}
                     </span>
                   </div>
                   {member.isMe && yesterdayOpen && status !== "silent" ? (
