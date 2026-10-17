@@ -39,7 +39,8 @@ model User {
   sessions          Session[]
   memberships       Membership[]
   groupsCreated     Group[]
-  checkIns          CheckIn[]
+  checkIns          CheckIn[]          @relation("CheckIns")
+  checkInsCorrected CheckIn[]          @relation("CheckInsCorrected")
   pushSubscriptions PushSubscription[]
   signalsSent       Signal[]           @relation("SignalsSent")
   signalsReceived   Signal[]           @relation("SignalsReceived")
@@ -120,16 +121,20 @@ model Membership {
 /// One answer per person per day to "¿Te mantuviste hoy?". A day with no row is a day without an answer. Check-ins belong
 /// to the person, not the group, so they follow them to any group.
 model CheckIn {
-  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId     String   @map("user_id") @db.Uuid
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
   /// The day answered for (see `checkInDay`: the night after midnight still counts as the day before).
-  day        DateTime @db.Date
-  relapsed   Boolean
+  day           DateTime @db.Date
+  relapsed      Boolean
   /// Optional words about the day; the group sees them once the day closes, like the answer.
-  note       String?
-  answeredAt DateTime @default(now()) @map("answered_at") @db.Timestamptz(6)
-  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  note          String?
+  /// Set when the group's creator recorded or corrected this answer for a closed day; cleared if the person answers
+  /// it themselves.
+  correctedById String?  @map("corrected_by_id") @db.Uuid
+  answeredAt    DateTime @default(now()) @map("answered_at") @db.Timestamptz(6)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user          User     @relation("CheckIns", fields: [userId], references: [id], onDelete: Cascade)
+  correctedBy   User?    @relation("CheckInsCorrected", fields: [correctedById], references: [id], onDelete: SetNull)
 
   @@unique([userId, day])
   @@map("check_ins")

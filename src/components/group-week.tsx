@@ -2,7 +2,7 @@ import { statusOf } from "@/lib/check-ins";
 import { weekdayInitial, type DayKey } from "@/lib/days";
 import { cn } from "@/lib/cn";
 
-type Member = { id: string; name: string; isMe: boolean; joinedDay: DayKey; answers: ReadonlyMap<DayKey, boolean> };
+type Member = { id: string; name: string; isMe: boolean; joinedDay: DayKey; answers: ReadonlyMap<DayKey, boolean>; corrected?: ReadonlySet<DayKey> };
 
 const STATUS_DOT = {
   clean: "bg-clean",
@@ -50,6 +50,7 @@ export function GroupWeek({ members, days, today }: { members: Member[]; days: D
                   const status = statusOf(answer);
                   dot = STATUS_DOT[status];
                   label = { clean: "Se mantuvo", relapsed: "Recayó", silent: "No respondió" }[status];
+                  if (member.corrected?.has(day)) label += " (corregido)";
                 }
                 return (
                   <td className="text-center" key={day}>

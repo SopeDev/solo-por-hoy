@@ -29,6 +29,7 @@ Last updated: 2026-10-14
   - Gamification: total clean days, group streak (everyone clean), and a sunrise that rises with the streak.
 - Home polish after first use: redrawn sunrise with the streak in it, clean-day rate no longer counts unanswered today, "Recordarle" only after tonight's question, icon-only encouragement, compact SOS row.
 - The one-tap message fits how the person's yesterday went: 👏 clean, 💪 relapse, 💛 no answer.
+- Group creator can correct a closed day's answer from Ajustes (marked "corregido"); migration `20261017000000_check_in_corrections`.
 - iPhone guidance: Share › “Agregar a inicio” install steps, an iOS 16.4+ note, and iOS settings path for blocked notifications.
 
 ## Next
