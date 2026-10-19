@@ -10,15 +10,11 @@ describe("checkInDay", () => {
     assert.equal(checkInDay(new Date("2026-10-13T04:00:00Z"), TZ), "2026-10-12");
   });
 
-  it("still counts the night after midnight as the day before", () => {
-    // 01:30 local on Oct 13.
-    assert.equal(checkInDay(new Date("2026-10-13T08:30:00Z"), TZ), "2026-10-12");
-    assert.equal(localDay(new Date("2026-10-13T08:30:00Z"), TZ), "2026-10-13");
-  });
-
-  it("moves to the new day at the rollover hour", () => {
-    // 05:00 local on Oct 13.
-    assert.equal(checkInDay(new Date("2026-10-13T12:00:00Z"), TZ), "2026-10-13");
+  it("moves to the new day at midnight", () => {
+    // 23:59 local on Oct 12, then 00:25 local on Oct 13.
+    assert.equal(checkInDay(new Date("2026-10-13T06:59:00Z"), TZ), "2026-10-12");
+    assert.equal(checkInDay(new Date("2026-10-13T07:25:00Z"), TZ), "2026-10-13");
+    assert.equal(localDay(new Date("2026-10-13T07:25:00Z"), TZ), "2026-10-13");
   });
 
   it("follows daylight saving time", () => {
