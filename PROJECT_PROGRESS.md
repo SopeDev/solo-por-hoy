@@ -33,7 +33,7 @@ Last updated: 2026-10-14
 - Supporter role ("acompañante"): chosen when joining, switchable in Ajustes; its own home ("Así va tu gente"); left out of the nightly question, reports and group streak; gets the SOS and an action-titled morning report. Migration `20261019000000_member_roles`.
 - One-tap messages are labeled buttons (👏 Felicitar, 💪 Dar ánimo, 💛 Preguntar cómo va, 🔔 Recordarle) with "✓ Enviado" after sending.
 - Days now change at midnight (no 5 a.m. rollover); the app refreshes when brought back to the foreground.
-- "Ayer" shows only the others, one row each: name · status · one-tap button (👏 Felicitar, 💪 Ánimo, 💛 ¿Cómo vas?); a corrected day shows an asterisk.
+- "Ayer" shows only the others, one row each: name and status on the left, one-tap button on the right (👏 Felicitar, 💪 Ánimo, 💛 ¿Cómo vas?); a corrected day shows an asterisk.
 - iPhone guidance: Share › “Agregar a inicio” install steps, an iOS 16.4+ note, and iOS settings path for blocked notifications.
 
 ## Next

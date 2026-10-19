@@ -8,7 +8,7 @@ import { SignalButton, SosButton } from "@/components/support-buttons";
 import { db } from "@/db/client";
 import { requireUserId } from "@/lib/auth-user";
 import { Sunrise } from "@/components/sunrise";
-import { cleanRate, cleanStreak, groupStreak, joinNames, longestStreak, statusOf, totalCleanDays } from "@/lib/check-ins";
+import { cleanRate, cleanStreak, type DayStatus, groupStreak, joinNames, longestStreak, statusOf, totalCleanDays } from "@/lib/check-ins";
 import { cn } from "@/lib/cn";
 import { addDays, checkInDay, daysEndingOn, formatDay, type DayKey } from "@/lib/days";
 import { getAppTimeZone, getVapidPublicKey } from "@/lib/env";
@@ -200,35 +200,43 @@ export default async function HomePage() {
 
 type RowMember = Awaited<ReturnType<typeof loadGroupHome>>["members"][number];
 
-/** Rows of name · status · button, with the columns lined up across people. */
-const rowsClass = "grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-2.5 gap-y-3";
+const rowsClass = "grid gap-3";
 
-/** Someone else's yesterday in one row: name, status, and the one-tap message fitted to it; their note below. */
+/** Someone else's yesterday in one row: name and status on the left, the one-tap message on the right; their note below. */
 function YesterdayRow({ member, day, title, children }: { member: RowMember; day: DayKey; title: string; children?: React.ReactNode }) {
   const status = statusOf(member.answers.get(day));
   return (
-    <li className="col-span-3 grid grid-cols-subgrid items-center">
-      <div className="min-w-0">
-        <p className="truncate">{title}</p>
-        {children}
-      </div>
-      <span
-        className={cn(
-          "flex items-center gap-1 text-xs whitespace-nowrap",
-          status === "clean" && "text-clean",
-          status === "relapsed" && "text-relapse",
-          status === "silent" && "text-muted-foreground",
-        )}
-        title={member.corrected.has(day) ? "Corregido por quien creó el grupo" : undefined}
-      >
-        <span aria-hidden className={cn("size-1.5 rounded-full", status === "clean" && "bg-clean", status === "relapsed" && "bg-relapse", status === "silent" && "border border-silent")} />
-        {{ clean: "Se mantuvo", relapsed: "Recayó", silent: "No respondió" }[status]}
-        {member.corrected.has(day) ? "*" : null}
-      </span>
-      <div className="flex justify-end">
+    <li>
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <p className="truncate">{title}</p>
+            <StatusLabel corrected={member.corrected.has(day)} status={status} />
+          </div>
+          {children}
+        </div>
         <SignalButton kind="cheer" sent={member.cheered} status={status} toName={member.name} toUserId={member.id} />
       </div>
-      {member.notes.yesterday ? <p className="col-span-3 mt-1 text-sm text-muted-foreground">“{member.notes.yesterday}”</p> : null}
+      {member.notes.yesterday ? <p className="mt-1 text-sm text-muted-foreground">“{member.notes.yesterday}”</p> : null}
     </li>
+  );
+}
+
+/** "● Se mantuvo" in the status color; an asterisk marks a day corrected by the group's creator. */
+function StatusLabel({ status, corrected }: { status: DayStatus; corrected: boolean }) {
+  return (
+    <span
+      className={cn(
+        "flex shrink-0 items-center gap-1.5 text-sm whitespace-nowrap",
+        status === "clean" && "text-clean",
+        status === "relapsed" && "text-relapse",
+        status === "silent" && "text-muted-foreground",
+      )}
+      title={corrected ? "Corregido por quien creó el grupo" : undefined}
+    >
+      <span aria-hidden className={cn("size-2 rounded-full", status === "clean" && "bg-clean", status === "relapsed" && "bg-relapse", status === "silent" && "border border-silent")} />
+      {{ clean: "Se mantuvo", relapsed: "Recayó", silent: "No respondió" }[status]}
+      {corrected ? "*" : null}
+    </span>
   );
 }
