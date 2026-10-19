@@ -96,10 +96,10 @@ export function milestoneLabel(streak: number) {
  * still-open yesterday.
  */
 export const CHEER = {
-  clean: { icon: "👏", action: "Felicitar", title: (from: string) => `${from} te felicita por ayer 👏`, body: "Un día más." },
-  relapsed: { icon: "💪", action: "Dar ánimo", title: (from: string) => `${from} te manda ánimo 💪`, body: "Hoy es un día nuevo." },
-  silent: { icon: "💛", action: "Preguntar cómo va", title: (from: string) => `${from} pensó en ti 💛`, body: "¿Cómo vas?" },
-} satisfies Record<DayStatus, { icon: string; action: string; title: (from: string) => string; body: string }>;
+  clean: { icon: "👏", action: "Felicitar", short: "Felicitar", title: (from: string) => `${from} te felicita por ayer 👏`, body: "Un día más." },
+  relapsed: { icon: "💪", action: "Dar ánimo", short: "Ánimo", title: (from: string) => `${from} te manda ánimo 💪`, body: "Hoy es un día nuevo." },
+  silent: { icon: "💛", action: "Preguntar cómo va", short: "¿Cómo vas?", title: (from: string) => `${from} pensó en ti 💛`, body: "¿Cómo vas?" },
+} satisfies Record<DayStatus, { icon: string; action: string; short: string; title: (from: string) => string; body: string }>;
 
 export function cheerMessage(from: string, status: DayStatus, yesterdayOpen: boolean) {
   const cheer = CHEER[status];
