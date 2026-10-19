@@ -24,7 +24,8 @@ Last updated: 2026-10-14
 ## Days
 
 - Days are calendar dates in `APP_TIME_ZONE` (default `America/Tijuana`), stored as `@db.Date`.
-- A check-in made before 05:00 (`DAY_ROLLOVER_HOUR`) counts for the day before, so a late answer after midnight is about the night that just ended. An answer to a notification is for the day the notification asked about; once that day has closed it's refused (409) and the app opens instead.
+- A day runs from midnight to 11:59 p.m.: at midnight the whole app moves to the new day. (Until 2026-10-19 answers before 05:00 counted for the day before; it was confusing to see "yesterday" in the app after midnight.) An answer to a notification is for the day the notification asked about, so tapping last night's question after midnight still lands on that night through the missed-yesterday window; once that day has closed it's refused (409) and the app opens instead.
+- The open app refreshes when it comes back to the foreground, so a screen left open overnight doesn't keep showing the day before.
 - A missed yesterday can still be answered, once, until the morning report about it goes out (from the app, or from last night's notification). After the report the day is closed for good, so the report is always final. Notes can be added to yesterday in the same window.
 - The morning report is about the calendar day before the morning it runs. It also celebrates clean streaks reaching 7, 14, 30, 60, 90, 180 and 365 days, then every year.
 - Someone who joined on a day isn't counted in reports for earlier days, and the week grid leaves those days blank.

@@ -1,36 +1,22 @@
 /** Days are calendar dates as "YYYY-MM-DD" keys, decided in the app's time zone. */
 export type DayKey = string;
 
-/**
- * Answers given after midnight but before this hour still count for the day before, so a late "No" at 1 a.m. is
- * about the night that just ended. The morning report goes out after it.
- */
-export const DAY_ROLLOVER_HOUR = 5;
-
 const DAY_MS = 24 * 60 * 60 * 1000;
-
-function localParts(now: Date, timeZone: string) {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(now);
-  const get = (type: string) => parts.find((part) => part.type === type)!.value;
-  return { date: `${get("year")}-${get("month")}-${get("day")}`, hour: Number(get("hour")) };
-}
 
 /** The calendar date in the time zone. */
 export function localDay(now: Date, timeZone: string): DayKey {
-  return localParts(now, timeZone).date;
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(now);
+  const get = (type: string) => parts.find((part) => part.type === type)!.value;
+  return `${get("year")}-${get("month")}-${get("day")}`;
 }
 
-/** The day a check-in made now answers for. */
+/**
+ * The day a check-in made now answers for: the calendar day, so a day can be answered until 11:59 p.m. and the app
+ * moves to the next day at midnight. A late answer to last night's notification still lands on that night, through
+ * the missed-yesterday window (see `canAnswer`).
+ */
 export function checkInDay(now: Date, timeZone: string): DayKey {
-  const { date, hour } = localParts(now, timeZone);
-  return hour < DAY_ROLLOVER_HOUR ? addDays(date, -1) : date;
+  return localDay(now, timeZone);
 }
 
 export function addDays(day: DayKey, days: number): DayKey {

@@ -32,6 +32,7 @@ Last updated: 2026-10-14
 - Group creator can correct a closed day's answer from Ajustes (marked "corregido"); migration `20261017000000_check_in_corrections`.
 - Supporter role ("acompañante"): chosen when joining, switchable in Ajustes; its own home ("Así va tu gente"); left out of the nightly question, reports and group streak; gets the SOS and an action-titled morning report. Migration `20261019000000_member_roles`.
 - One-tap messages are labeled buttons (👏 Felicitar, 💪 Dar ánimo, 💛 Preguntar cómo va, 🔔 Recordarle) with "✓ Enviado" after sending.
+- Days now change at midnight (no 5 a.m. rollover); the app refreshes when brought back to the foreground.
 - iPhone guidance: Share › “Agregar a inicio” install steps, an iOS 16.4+ note, and iOS settings path for blocked notifications.
 
 ## Next
