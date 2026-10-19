@@ -64,12 +64,12 @@ export function SignalButton({ kind, toUserId, toName, sent, status = "clean" }:
   }
 
   const cheer = CHEER[status];
-  const label = kind === "cheer" ? `${cheer.icon} ${cheer.action}` : "🔔 Recordarle";
+  const label = kind === "cheer" ? `${cheer.icon} ${cheer.short}` : "🔔 Recordarle";
   return (
     <button
       aria-label={done ? `Enviado a ${toName}` : `${kind === "cheer" ? cheer.action : "Recordarle"} a ${toName}`}
       className={cn(
-        "inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 text-sm font-medium text-primary transition hover:bg-primary/20 disabled:cursor-default",
+        "inline-flex min-h-9 shrink-0 items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-2.5 text-sm font-medium whitespace-nowrap text-primary transition hover:bg-primary/20 disabled:cursor-default",
         done && "border-transparent bg-transparent px-0 font-normal text-muted-foreground",
         pending && "opacity-60",
       )}

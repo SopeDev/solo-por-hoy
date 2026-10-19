@@ -4,7 +4,6 @@ import { CheckInButtons } from "@/components/check-in-buttons";
 import { DeviceSetup } from "@/components/device-setup";
 import { GroupWeek } from "@/components/group-week";
 import { InviteLink } from "@/components/invite-link";
-import { NoteEditor } from "@/components/note-editor";
 import { SignalButton, SosButton } from "@/components/support-buttons";
 import { db } from "@/db/client";
 import { requireUserId } from "@/lib/auth-user";
@@ -66,6 +65,7 @@ export default async function HomePage() {
   const supporters = members.filter((member) => member.isSupporter);
   const otherParticipants = participants.filter((member) => !member.isMe);
   const yesterdayParticipants = participants.filter((member) => member.joinedDay <= yesterday);
+  const yesterdayOthers = yesterdayParticipants.filter((member) => !member.isMe);
   const together = participants.length > 1 ? groupStreak(participants, yesterday) : 0;
   // Reminders only once tonight's question has gone out; in the morning nobody is expected to have answered.
   const pendingToday = askedTonight ? otherParticipants.filter((member) => !member.answers.has(today)) : [];
@@ -111,9 +111,8 @@ export default async function HomePage() {
         <section className={cardClass}>
           <p className="text-sm text-primary">Acompañas a tu grupo</p>
           <h2 className="mt-1 font-display text-3xl">Así va tu gente</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Cada botón le manda una notificación a esa persona.</p>
           {yesterdayParticipants.length > 0 ? (
-            <ul className="mt-4 grid gap-4">
+            <ul className={cn(rowsClass, "mt-4")}>
               {yesterdayParticipants.map((member) => {
                 // Through yesterday, so today's answers stay private until the day closes.
                 const streak = cleanStreak(member.answers, yesterday);
@@ -181,13 +180,12 @@ export default async function HomePage() {
         </section>
       ) : null}
 
-      {yesterdayParticipants.length > 0 ? (
+      {yesterdayOthers.length > 0 ? (
         <section className={cn(cardClass, "mt-4")}>
           <h2 className="font-medium">Ayer</h2>
-          {otherParticipants.length > 0 ? <p className="mt-1 text-sm text-muted-foreground">Cada botón le manda una notificación a esa persona.</p> : null}
-          <ul className="mt-4 grid gap-4">
-            {yesterdayParticipants.map((member) => (
-              <YesterdayRow day={yesterday} editableNote={member.isMe && yesterdayOpen} key={member.id} member={member} title={member.isMe ? "Tú" : member.name} />
+          <ul className={cn(rowsClass, "mt-3")}>
+            {yesterdayOthers.map((member) => (
+              <YesterdayRow day={yesterday} key={member.id} member={member} title={member.name} />
             ))}
           </ul>
         </section>
@@ -202,36 +200,35 @@ export default async function HomePage() {
 
 type RowMember = Awaited<ReturnType<typeof loadGroupHome>>["members"][number];
 
-/** One participant's yesterday: status, note, and (for others) the one-tap message fitted to it. */
-function YesterdayRow({ member, day, title, editableNote = false, children }: { member: RowMember; day: DayKey; title: string; editableNote?: boolean; children?: React.ReactNode }) {
+/** Rows of name · status · button, with the columns lined up across people. */
+const rowsClass = "grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-2.5 gap-y-3";
+
+/** Someone else's yesterday in one row: name, status, and the one-tap message fitted to it; their note below. */
+function YesterdayRow({ member, day, title, children }: { member: RowMember; day: DayKey; title: string; children?: React.ReactNode }) {
   const status = statusOf(member.answers.get(day));
   return (
-    <li>
-      <div className="flex items-center justify-between gap-3">
-        <span className="min-w-0 flex-1 truncate">{title}</span>
-        <span
-          className={cn(
-            "shrink-0 rounded-full px-3 py-1 text-sm",
-            status === "clean" && "bg-clean/15 text-clean",
-            status === "relapsed" && "bg-relapse/15 text-relapse",
-            status === "silent" && "bg-silent/15 text-muted-foreground",
-          )}
-        >
-          {{ clean: "Se mantuvo", relapsed: "Recayó", silent: "No respondió" }[status]}
-          {member.corrected.has(day) ? <span className="ml-1 text-xs opacity-70">· corregido</span> : null}
-        </span>
+    <li className="col-span-3 grid grid-cols-subgrid items-center">
+      <div className="min-w-0">
+        <p className="truncate">{title}</p>
+        {children}
       </div>
-      {children}
-      {editableNote && status !== "silent" ? (
-        <NoteEditor day={day} note={member.notes.yesterday} />
-      ) : member.notes.yesterday ? (
-        <p className="mt-1 text-sm text-muted-foreground">“{member.notes.yesterday}”</p>
-      ) : null}
-      {!member.isMe ? (
-        <div className="mt-2">
-          <SignalButton kind="cheer" sent={member.cheered} status={status} toName={member.name} toUserId={member.id} />
-        </div>
-      ) : null}
+      <span
+        className={cn(
+          "flex items-center gap-1 text-xs whitespace-nowrap",
+          status === "clean" && "text-clean",
+          status === "relapsed" && "text-relapse",
+          status === "silent" && "text-muted-foreground",
+        )}
+        title={member.corrected.has(day) ? "Corregido por quien creó el grupo" : undefined}
+      >
+        <span aria-hidden className={cn("size-1.5 rounded-full", status === "clean" && "bg-clean", status === "relapsed" && "bg-relapse", status === "silent" && "border border-silent")} />
+        {{ clean: "Se mantuvo", relapsed: "Recayó", silent: "No respondió" }[status]}
+        {member.corrected.has(day) ? "*" : null}
+      </span>
+      <div className="flex justify-end">
+        <SignalButton kind="cheer" sent={member.cheered} status={status} toName={member.name} toUserId={member.id} />
+      </div>
+      {member.notes.yesterday ? <p className="col-span-3 mt-1 text-sm text-muted-foreground">“{member.notes.yesterday}”</p> : null}
     </li>
   );
 }
