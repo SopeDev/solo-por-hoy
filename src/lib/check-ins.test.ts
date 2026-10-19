@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { cheerMessage, cleanRate, cleanStreak, dayReport, displayName, groupStreak, isMilestone, joinNames, longestStreak, milestoneLabel, reportMessage, totalCleanDays } from "./check-ins";
+import { supporterReportTitle, cheerMessage, cleanRate, cleanStreak, dayReport, displayName, groupStreak, isMilestone, joinNames, longestStreak, milestoneLabel, reportMessage, totalCleanDays } from "./check-ins";
 
 describe("cleanStreak", () => {
   const answers = (entries: Record<string, boolean>) => new Map(Object.entries(entries));
@@ -105,6 +105,14 @@ describe("progress", () => {
     assert.deepEqual(cheerMessage("Jorge", "relapsed", true), { title: "Jorge te manda ánimo 💪", body: "Hoy es un día nuevo." });
     assert.equal(cheerMessage("Jorge", "silent", true).body, "¿Cómo vas? Aún puedes responder lo de ayer.");
     assert.equal(cheerMessage("Jorge", "silent", false).body, "¿Cómo vas?");
+  });
+
+  it("asks supporters to act on relapses and milestones", () => {
+    const quiet = dayReport([{ name: "Jorge", answer: false }]);
+    assert.equal(supporterReportTitle("G", quiet), "Ayer en G");
+    assert.equal(supporterReportTitle("G", quiet, [{ name: "Jorge" }]), "Jorge está de racha: mándale una felicitación 👏");
+    const rough = dayReport([{ name: "Jorge", answer: true }, { name: "Luis", answer: true }]);
+    assert.equal(supporterReportTitle("G", rough, [{ name: "Ana" }]), "Jorge y Luis recayeron ayer: un mensaje les ayuda 💛");
   });
 
   it("prefers the nickname", () => {

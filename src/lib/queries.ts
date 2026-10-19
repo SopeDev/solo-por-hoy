@@ -6,6 +6,11 @@ import { displayName } from "./check-ins";
 import { addDays, checkInDay, dateOfDay, dayOfDate, type DayKey } from "./days";
 import { getAppTimeZone } from "./env";
 
+/** The first day a membership counts as a participant: since joining, or since switching from supporter. */
+export function participantStartDay(membership: { joinedAt: Date; participatingSince: Date | null }, timeZone = getAppTimeZone()) {
+  return membership.participatingSince ? dayOfDate(membership.participatingSince) : checkInDay(membership.joinedAt, timeZone);
+}
+
 export const USER_NAME_FIELDS = { name: true, email: true, nickname: true } as const;
 
 /** For now a person belongs to at most one group. */
@@ -84,7 +89,7 @@ export async function getGroupMembers(groupId: string) {
     orderBy: { joinedAt: "asc" },
     include: { user: { select: { id: true, ...USER_NAME_FIELDS } } },
   });
-  return members.map((member) => ({ id: member.userId, name: displayName(member.user), joinedAt: member.joinedAt }));
+  return members.map((member) => ({ id: member.userId, name: displayName(member.user), joinedAt: member.joinedAt, role: member.role }));
 }
 
 /**
@@ -126,7 +131,9 @@ export async function loadGroupHome(userId: string, groupId: string, today: DayK
       id: member.userId,
       name: displayName(member.user),
       isMe: member.userId === userId,
-      joinedDay: checkInDay(member.joinedAt, getAppTimeZone()),
+      isSupporter: member.role === "SUPPORTER",
+      /** For participants, the first day they count from (days before show blank). */
+      joinedDay: participantStartDay(member),
       answers: answersByUser.get(member.userId)!,
       corrected: correctedByUser.get(member.userId)!,
       notes: notesByUser.get(member.userId) ?? {},

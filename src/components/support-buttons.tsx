@@ -49,8 +49,8 @@ export function SosButton() {
 }
 
 /**
- * A one-tap push to one person: a message fitted to how their yesterday went (`status`), or a reminder to answer
- * today.
+ * A one-tap push to one person, labeled with what it sends: a message fitted to how their yesterday went
+ * (`status`), or a reminder to answer today.
  */
 export function SignalButton({ kind, toUserId, toName, sent, status = "clean" }: { kind: "cheer" | "nudge"; toUserId: string; toName: string; sent: boolean; status?: DayStatus }) {
   const [done, setDone] = useState(sent);
@@ -63,31 +63,21 @@ export function SignalButton({ kind, toUserId, toName, sent, status = "clean" }:
     });
   }
 
-  if (kind === "cheer") {
-    const cheer = CHEER[status];
-    const label = done ? `Ya le escribiste a ${toName} hoy` : `${cheer.action} a ${toName}`;
-    return (
-      <button
-        aria-label={label}
-        className={cn("flex size-9 shrink-0 items-center justify-center rounded-full border border-border transition hover:bg-white/5", done && "border-transparent opacity-40")}
-        disabled={done || pending}
-        onClick={send}
-        title={label}
-        type="button"
-      >
-        <span aria-hidden>{cheer.icon}</span>
-      </button>
-    );
-  }
-
+  const cheer = CHEER[status];
+  const label = kind === "cheer" ? `${cheer.icon} ${cheer.action}` : "🔔 Recordarle";
   return (
     <button
-      className={cn("shrink-0 rounded-full border border-border px-3 py-1 text-sm transition hover:bg-white/5 disabled:opacity-60", done && "border-transparent text-muted-foreground")}
+      aria-label={done ? `Enviado a ${toName}` : `${kind === "cheer" ? cheer.action : "Recordarle"} a ${toName}`}
+      className={cn(
+        "inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 text-sm font-medium text-primary transition hover:bg-primary/20 disabled:cursor-default",
+        done && "border-transparent bg-transparent px-0 font-normal text-muted-foreground",
+        pending && "opacity-60",
+      )}
       disabled={done || pending}
       onClick={send}
       type="button"
     >
-      {done ? "Recordado" : "Recordarle"}
+      {done ? "✓ Enviado" : label}
     </button>
   );
 }

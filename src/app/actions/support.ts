@@ -22,10 +22,11 @@ async function sender(userId: string) {
   return { name: displayName(user), membership };
 }
 
-/** Someone in the same group as the sender, other than the sender. */
+/** A participant in the same group as the sender, other than the sender: the people support goes to. */
 async function isGroupmate(groupId: string, userId: string, toUserId: string) {
   if (toUserId === userId) return false;
-  return Boolean(await db.membership.findUnique({ where: { groupId_userId: { groupId, userId: toUserId } }, select: { id: true } }));
+  const membership = await db.membership.findUnique({ where: { groupId_userId: { groupId, userId: toUserId } }, select: { role: true } });
+  return membership?.role === "PARTICIPANT";
 }
 
 /** "Necesito apoyo": tells everyone else in the group right away. At most once every half hour. */

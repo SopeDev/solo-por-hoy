@@ -14,6 +14,15 @@ enum BroadcastKind {
   @@map("broadcast_kind")
 }
 
+/// Participants do the challenge (nightly question, streaks). Supporters ("acompañantes") don't answer anything:
+/// they get the SOS and the morning report and send encouragement.
+enum MemberRole {
+  PARTICIPANT
+  SUPPORTER
+
+  @@map("member_role")
+}
+
 /// Person-to-person pushes: a call for support to the whole group, encouragement, or a reminder to answer.
 enum SignalKind {
   SOS
@@ -106,12 +115,15 @@ model Group {
 }
 
 model Membership {
-  id       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  groupId  String   @map("group_id") @db.Uuid
-  userId   String   @map("user_id") @db.Uuid
-  joinedAt DateTime @default(now()) @map("joined_at") @db.Timestamptz(6)
-  group    Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                 String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupId            String     @map("group_id") @db.Uuid
+  userId             String     @map("user_id") @db.Uuid
+  joinedAt           DateTime   @default(now()) @map("joined_at") @db.Timestamptz(6)
+  role               MemberRole @default(PARTICIPANT)
+  /// The first day counted as a participant when someone switched from supporter; null means since joining.
+  participatingSince DateTime?  @map("participating_since") @db.Date
+  group              Group      @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user               User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([groupId, userId])
   @@index([userId])
