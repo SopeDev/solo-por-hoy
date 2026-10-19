@@ -32,7 +32,7 @@ Last updated: 2026-10-14
 - Clean streak: consecutive clean days, ending today, or ending yesterday while today is unanswered. A relapse or an unanswered day ends it.
 - Total clean days count every clean day ever and never reset, so a relapse ends the streak without erasing the history.
 - Group streak: consecutive closed days (ending yesterday) on which everyone in the group answered "Sí, me mantuve"; a relapse or a missing answer from anyone ends it, and people count from the day they joined. It ends at yesterday so it never reveals today's answers. Shown on home and in the morning report (from 2 days). No rankings between members.
-- The sunrise on home shows the personal streak beside a sun that rises with it (faster in the first days so they show), fully up at 90 days.
+- The sunrise on home shows the personal streak beside a sun that rises with it: a sliver on day 0, almost all out by day 7, then a slower climb to near the top by day 90.
 - The clean-day rate counts today only once it's answered, so it doesn't drop every morning.
 
 ## Privacy
