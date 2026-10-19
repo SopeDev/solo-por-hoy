@@ -97,7 +97,7 @@ export function milestoneLabel(streak: number) {
  */
 export const CHEER = {
   clean: { icon: "👏", action: "Felicitar", title: (from: string) => `${from} te felicita por ayer 👏`, body: "Un día más." },
-  relapsed: { icon: "💪", action: "Mandar ánimo", title: (from: string) => `${from} te manda ánimo 💪`, body: "Hoy es un día nuevo." },
+  relapsed: { icon: "💪", action: "Dar ánimo", title: (from: string) => `${from} te manda ánimo 💪`, body: "Hoy es un día nuevo." },
   silent: { icon: "💛", action: "Preguntar cómo va", title: (from: string) => `${from} pensó en ti 💛`, body: "¿Cómo vas?" },
 } satisfies Record<DayStatus, { icon: string; action: string; title: (from: string) => string; body: string }>;
 
@@ -133,6 +133,19 @@ export function reportMessage(report: DayReport, extras: { milestones?: { name: 
   for (const { name, streak } of extras.milestones ?? []) lines.push(`🎉 ${name} cumple ${milestoneLabel(streak)}`);
   if (extras.groupStreak && extras.groupStreak >= 2) lines.push(`🔥 El grupo lleva ${extras.groupStreak} días limpio`);
   return lines.join(" · ");
+}
+
+/**
+ * The morning notification's title for supporters: a call to act when someone relapsed or reached a milestone,
+ * otherwise the same title everyone gets. The body is the report itself.
+ */
+export function supporterReportTitle(groupName: string, report: DayReport, milestones: { name: string }[] = []) {
+  const relapsed = report.relapsed;
+  if (relapsed.length === 1) return `${relapsed[0]} recayó ayer: un mensaje le ayuda 💛`;
+  if (relapsed.length > 1) return `${joinNames(relapsed)} recayeron ayer: un mensaje les ayuda 💛`;
+  if (milestones.length === 1) return `${milestones[0].name} está de racha: mándale una felicitación 👏`;
+  if (milestones.length > 1) return `${joinNames(milestones.map((milestone) => milestone.name))} están de racha: mándales una felicitación 👏`;
+  return `Ayer en ${groupName}`;
 }
 
 /** The nickname the person chose, else the first name from Google, else the part of the email before "@". */

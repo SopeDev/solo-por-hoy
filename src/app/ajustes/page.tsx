@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { signOut } from "@/auth";
-import { correctCheckIn, leaveGroup, removeMember, renameGroup, resetInviteCode } from "@/app/actions/groups";
+import { correctCheckIn, leaveGroup, removeMember, renameGroup, resetInviteCode, setMemberRole, setMyRole } from "@/app/actions/groups";
 import { saveProfile } from "@/app/actions/profile";
 import { AppShell, cardClass, inputClass } from "@/components/app-shell";
 import { ConfirmSubmit } from "@/components/confirm-submit";
@@ -30,7 +30,10 @@ export default async function SettingsPage({ searchParams }: PageProps<"/ajustes
   const isOwner = membership?.group.createdById === userId;
   const today = checkInDay(new Date(), getAppTimeZone());
   const correctableDays = Array.from({ length: CORRECTION_DAYS }, (_, index) => addDays(today, -(index + 1)));
-  const othersFirst = [...members.filter((member) => member.id !== userId), ...members.filter((member) => member.id === userId)];
+  const myRole = members.find((member) => member.id === userId)?.role;
+  // Corrections are for participants; supporters don't answer.
+  const correctable = members.filter((member) => member.role === "PARTICIPANT");
+  const othersFirst = [...correctable.filter((member) => member.id !== userId), ...correctable.filter((member) => member.id === userId)];
 
   async function signOutAction() {
     "use server";
@@ -85,18 +88,39 @@ export default async function SettingsPage({ searchParams }: PageProps<"/ajustes
           <ul className="mt-4 grid gap-2">
             {members.map((member) => (
               <li className="flex min-h-10 items-center justify-between gap-3" key={member.id}>
-                <span className="truncate">
+                <span className="min-w-0 truncate">
                   {member.id === userId ? "Tú" : member.name}
+                  {member.role === "SUPPORTER" ? <span className="ml-2 text-xs text-primary">acompaña</span> : null}
                   {member.id === membership.group.createdById ? <span className="ml-2 text-xs text-muted-foreground">creó el grupo</span> : null}
                 </span>
                 {isOwner && member.id !== userId ? (
-                  <form action={removeMember.bind(null, member.id)}>
-                    <ConfirmSubmit className={linkButtonClass} confirmLabel={`Sí, quitar a ${member.name}`} label="Quitar" />
-                  </form>
+                  <span className="flex shrink-0 items-center gap-3">
+                    <form action={setMemberRole.bind(null, member.id, member.role === "SUPPORTER" ? "PARTICIPANT" : "SUPPORTER")}>
+                      <button className={linkButtonClass} type="submit">
+                        {member.role === "SUPPORTER" ? "Pasar al reto" : "Hacer acompañante"}
+                      </button>
+                    </form>
+                    <form action={removeMember.bind(null, member.id)}>
+                      <ConfirmSubmit className={linkButtonClass} confirmLabel={`Sí, quitar a ${member.name}`} label="Quitar" />
+                    </form>
+                  </span>
                 ) : null}
               </li>
             ))}
           </ul>
+
+          <div className="mt-4 border-t border-border pt-4">
+            <p className="text-sm">{myRole === "SUPPORTER" ? "Acompañas al grupo: no respondes la pregunta de la noche." : "Haces el reto: respondes cada noche."}</p>
+            <p className="mt-1 text-xs text-muted-foreground">Quienes acompañan ven las respuestas y notas del grupo.</p>
+            <form action={setMyRole} className="mt-2">
+              <input name="role" type="hidden" value={myRole === "SUPPORTER" ? "PARTICIPANT" : "SUPPORTER"} />
+              <ConfirmSubmit
+                className={linkButtonClass}
+                confirmLabel={myRole === "SUPPORTER" ? "Sí, empezar el reto hoy" : "Sí, solo acompañar"}
+                label={myRole === "SUPPORTER" ? "Quiero hacer el reto" : "Prefiero solo acompañar"}
+              />
+            </form>
+          </div>
 
           <div className="mt-4 grid gap-3 border-t border-border pt-4">
             <InviteLink code={membership.group.inviteCode} groupName={membership.group.name} />

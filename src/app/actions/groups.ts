@@ -6,11 +6,12 @@ import { z } from "zod";
 import { db } from "@/db/client";
 import { requireActionUserId } from "@/lib/auth-user";
 import { newInviteCode } from "@/lib/invite-code";
-import { addDays, checkInDay, isDayKey } from "@/lib/days";
+import { addDays, checkInDay, dateOfDay, isDayKey } from "@/lib/days";
 import { getAppTimeZone } from "@/lib/env";
 import { CORRECTION_DAYS, getMembership, saveCorrection } from "@/lib/queries";
 
 const groupName = z.string().trim().min(1).max(40);
+const role = z.enum(["PARTICIPANT", "SUPPORTER"]);
 
 export async function createGroup(formData: FormData) {
   const userId = await requireActionUserId();
@@ -26,16 +27,18 @@ export async function createGroup(formData: FormData) {
   redirect("/");
 }
 
+/** Joins by invite code, either doing the challenge or as a supporter ("acompañante"). */
 export async function joinGroup(formData: FormData) {
   const userId = await requireActionUserId();
   const code = String(formData.get("code") ?? "").trim().toUpperCase();
+  const joinAs = role.catch("PARTICIPANT").parse(formData.get("role"));
   const group = await db.group.findUnique({ where: { inviteCode: code } });
   if (!group) redirect(`/unirse/${encodeURIComponent(code)}`);
 
   // Joining moves the person here from any other group.
   const current = await getMembership(userId);
   if (current && current.groupId !== group.id) await leaveCurrentGroup(userId);
-  await db.membership.upsert({ where: { groupId_userId: { groupId: group.id, userId } }, create: { groupId: group.id, userId }, update: {} });
+  await db.membership.upsert({ where: { groupId_userId: { groupId: group.id, userId } }, create: { groupId: group.id, userId, role: joinAs }, update: {} });
   revalidatePath("/");
   redirect("/");
 }
@@ -109,6 +112,7 @@ export async function correctCheckIn(formData: FormData) {
   const membership = await db.membership.findUnique({ where: { groupId_userId: { groupId, userId: memberId } } });
   const valid =
     membership &&
+    membership.role === "PARTICIPANT" &&
     isDayKey(day) &&
     (answer === "clean" || answer === "relapsed") &&
     day < today &&
@@ -119,4 +123,32 @@ export async function correctCheckIn(formData: FormData) {
   await saveCorrection(memberId, day, answer === "relapsed", userId);
   revalidatePath("/", "layout");
   redirect("/ajustes?correccion=ok");
+}
+
+/** Switches a membership's role. Becoming a participant starts counting today, so earlier days aren't "no answer". */
+async function setRole(groupId: string, userId: string, next: "PARTICIPANT" | "SUPPORTER") {
+  const membership = await db.membership.findUnique({ where: { groupId_userId: { groupId, userId } } });
+  if (!membership || membership.role === next) return;
+  const today = checkInDay(new Date(), getAppTimeZone());
+  await db.membership.update({
+    where: { id: membership.id },
+    data: next === "PARTICIPANT" ? { role: next, participatingSince: dateOfDay(today) } : { role: next },
+  });
+}
+
+/** Anyone can choose for themselves whether they do the challenge or accompany. */
+export async function setMyRole(formData: FormData) {
+  const userId = await requireActionUserId();
+  const membership = await getMembership(userId);
+  const next = role.safeParse(formData.get("role"));
+  if (membership && next.success) await setRole(membership.groupId, userId, next.data);
+  revalidatePath("/", "layout");
+}
+
+/** The group's creator can switch anyone's role. */
+export async function setMemberRole(memberId: string, next: "PARTICIPANT" | "SUPPORTER") {
+  const { groupId } = await requireOwnGroup();
+  const parsed = role.safeParse(next);
+  if (parsed.success) await setRole(groupId, memberId, parsed.data);
+  revalidatePath("/", "layout");
 }

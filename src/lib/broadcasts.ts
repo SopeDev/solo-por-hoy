@@ -3,11 +3,11 @@ import "server-only";
 import { Prisma } from "@/generated/prisma/client";
 import { BroadcastKind } from "@/generated/prisma/enums";
 import { db } from "@/db/client";
-import { cleanStreak, dayReport, displayName, groupStreak, isMilestone, reportMessage } from "./check-ins";
+import { cleanStreak, dayReport, displayName, groupStreak, isMilestone, reportMessage, supporterReportTitle } from "./check-ins";
 import { addDays, checkInDay, dateOfDay, dayOfDate, localDay, type DayKey } from "./days";
 import { getAppTimeZone } from "./env";
 import { promptPayload, sendPush } from "./push";
-import { USER_NAME_FIELDS } from "./queries";
+import { participantStartDay, USER_NAME_FIELDS } from "./queries";
 
 const HOUR = 60 * 60;
 
@@ -27,8 +27,9 @@ export async function sendNightlyPrompts(now: Date) {
   const day = checkInDay(now, getAppTimeZone());
   if (!(await claimBroadcast(BroadcastKind.NIGHTLY_PROMPT, day))) return { day, skipped: true };
 
+  // Supporters don't do the challenge, so they aren't asked.
   const pending = await db.user.findMany({
-    where: { pushSubscriptions: { some: {} }, checkIns: { none: { day: dateOfDay(day) } } },
+    where: { pushSubscriptions: { some: {} }, checkIns: { none: { day: dateOfDay(day) } }, memberships: { none: { role: "SUPPORTER" } } },
     select: { id: true },
   });
   // Kept until the morning, so a phone that was off still gets asked while the day can be answered.
@@ -61,26 +62,38 @@ export async function sendMorningReports(now: Date) {
   let sent = 0;
   let failed = 0;
   for (const group of groups) {
-    // Someone who joined today wasn't part of yesterday.
-    const members = group.memberships.filter((membership) => checkInDay(membership.joinedAt, timeZone) <= day);
-    if (members.length === 0) continue;
+    // The report is about participants who were already counting yesterday; supporters get it too.
+    const participants = group.memberships.filter((membership) => membership.role === "PARTICIPANT" && participantStartDay(membership, timeZone) <= day);
+    if (participants.length === 0) continue;
+    const supporters = group.memberships.filter((membership) => membership.role === "SUPPORTER");
 
-    const report = dayReport(members.map((membership) => ({ name: displayName(membership.user), answer: answerOf(membership.userId) })));
-    const milestones = members
+    const report = dayReport(participants.map((membership) => ({ name: displayName(membership.user), answer: answerOf(membership.userId) })));
+    const milestones = participants
       .filter((membership) => answerOf(membership.userId) === false)
       .map((membership) => ({ name: displayName(membership.user), streak: cleanStreak(history.get(membership.userId)!, day) }))
       .filter((member) => isMilestone(member.streak));
     const streak = groupStreak(
-      members.map((membership) => ({ joinedDay: checkInDay(membership.joinedAt, timeZone), answers: history.get(membership.userId) ?? new Map() })),
+      participants.map((membership) => ({ joinedDay: participantStartDay(membership, timeZone), answers: history.get(membership.userId) ?? new Map() })),
       day,
     );
-    const result = await sendPush(
-      members.map((membership) => membership.userId),
-      { type: "report", title: `Ayer en ${group.name}`, body: reportMessage(report, { milestones, groupStreak: members.length > 1 ? streak : 0 }) },
-      { ttl: 12 * HOUR, topic: "report" },
-    );
-    sent += result.sent;
-    failed += result.failed;
+    const body = reportMessage(report, { milestones, groupStreak: participants.length > 1 ? streak : 0 });
+    const results = await Promise.all([
+      sendPush(
+        participants.map((membership) => membership.userId),
+        { type: "report", title: `Ayer en ${group.name}`, body },
+        { ttl: 12 * HOUR, topic: "report" },
+      ),
+      // Supporters get one notification too, titled with what they can do about it.
+      sendPush(
+        supporters.map((membership) => membership.userId),
+        { type: "report", title: supporterReportTitle(group.name, report, milestones), body },
+        { ttl: 12 * HOUR, topic: "report" },
+      ),
+    ]);
+    for (const result of results) {
+      sent += result.sent;
+      failed += result.failed;
+    }
   }
   return { day, sent, failed };
 }

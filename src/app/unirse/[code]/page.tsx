@@ -28,11 +28,17 @@ export default async function JoinPage({ params }: PageProps<"/unirse/[code]">) 
             <h1 className="mt-1 font-display text-3xl">{group.name}</h1>
             <p className="mt-3 text-muted-foreground">Con {joinNames(group.memberships.map((membership) => displayName(membership.user)))}.</p>
             {current ? <p className="mt-4 text-sm text-muted-foreground">Saldrás de “{current.group.name}”.</p> : null}
-            <form action={joinGroup} className="mt-6">
+            <form action={joinGroup} className="mt-6 grid gap-3 text-left">
               <input name="code" type="hidden" value={code} />
-              <button className="min-h-12 w-full rounded-xl bg-primary px-4 font-semibold text-primary-foreground transition hover:brightness-110" type="submit">
-                Unirme
+              <button className="min-h-12 w-full rounded-xl bg-primary px-4 py-3 text-left text-primary-foreground transition hover:brightness-110" name="role" type="submit" value="PARTICIPANT">
+                <span className="block font-semibold">Quiero hacer el reto</span>
+                <span className="block text-sm opacity-80">Respondes cada noche y llevas tu racha.</span>
               </button>
+              <button className="min-h-12 w-full rounded-xl border border-border px-4 py-3 text-left transition hover:bg-white/5" name="role" type="submit" value="SUPPORTER">
+                <span className="block font-semibold">Quiero acompañar</span>
+                <span className="block text-sm text-muted-foreground">No respondes nada: recibes sus pedidos de apoyo y el reporte de cada mañana.</span>
+              </button>
+              <p className="text-xs text-muted-foreground">Quien acompaña ve las respuestas y notas del grupo. Puedes cambiar de papel en Ajustes.</p>
             </form>
           </>
         ) : (

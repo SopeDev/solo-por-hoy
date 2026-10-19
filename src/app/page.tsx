@@ -9,9 +9,9 @@ import { SignalButton, SosButton } from "@/components/support-buttons";
 import { db } from "@/db/client";
 import { requireUserId } from "@/lib/auth-user";
 import { Sunrise } from "@/components/sunrise";
-import { cleanRate, cleanStreak, groupStreak, longestStreak, statusOf, totalCleanDays } from "@/lib/check-ins";
+import { cleanRate, cleanStreak, groupStreak, joinNames, longestStreak, statusOf, totalCleanDays } from "@/lib/check-ins";
 import { cn } from "@/lib/cn";
-import { addDays, checkInDay, daysEndingOn, formatDay } from "@/lib/days";
+import { addDays, checkInDay, daysEndingOn, formatDay, type DayKey } from "@/lib/days";
 import { getAppTimeZone, getVapidPublicKey } from "@/lib/env";
 import { getMembership, isNightlyPromptSent, isYesterdayOpen, loadGroupHome } from "@/lib/queries";
 
@@ -62,16 +62,83 @@ export default async function HomePage() {
     isNightlyPromptSent(today),
   ]);
   const self = members.find((member) => member.isMe)!;
+  const participants = members.filter((member) => !member.isSupporter);
+  const supporters = members.filter((member) => member.isSupporter);
+  const otherParticipants = participants.filter((member) => !member.isMe);
+  const yesterdayParticipants = participants.filter((member) => member.joinedDay <= yesterday);
+  const together = participants.length > 1 ? groupStreak(participants, yesterday) : 0;
+  // Reminders only once tonight's question has gone out; in the morning nobody is expected to have answered.
+  const pendingToday = askedTonight ? otherParticipants.filter((member) => !member.answers.has(today)) : [];
+
+  const weekCard = (
+    <section className={cn(cardClass, "mt-4")}>
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 className="font-medium">Esta semana</h2>
+        {together > 0 ? (
+          <p className="text-sm text-primary">
+            🔥 {together} {together === 1 ? "día" : "días"} todos limpios
+          </p>
+        ) : null}
+      </div>
+      <div className="mt-2">
+        <GroupWeek days={daysEndingOn(today, HISTORY_DAYS)} members={participants} today={today} />
+      </div>
+      {supporters.length > 0 ? (
+        <p className="mt-3 text-sm text-muted-foreground">
+          {self.isSupporter ? "Acompañan: " : "Te acompañan: "}
+          {joinNames(supporters.map((member) => (member.isMe ? "tú" : member.name)))}
+        </p>
+      ) : null}
+      {pendingToday.length > 0 ? (
+        <ul className="mt-4 grid gap-2 border-t border-border pt-4">
+          {pendingToday.map((member) => (
+            <li className="flex items-center justify-between gap-3 text-sm" key={member.id}>
+              <span className="truncate text-muted-foreground">{member.name} aún no responde hoy</span>
+              <SignalButton kind="nudge" sent={member.nudged} toName={member.name} toUserId={member.id} />
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      <div className="mt-4">
+        <InviteLink code={membership.group.inviteCode} groupName={membership.group.name} />
+      </div>
+    </section>
+  );
+
+  if (self.isSupporter) {
+    return (
+      <AppShell groupName={membership.group.name}>
+        <section className={cardClass}>
+          <p className="text-sm text-primary">Acompañas a tu grupo</p>
+          <h2 className="mt-1 font-display text-3xl">Así va tu gente</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Cada botón le manda una notificación a esa persona.</p>
+          {yesterdayParticipants.length > 0 ? (
+            <ul className="mt-4 grid gap-4">
+              {yesterdayParticipants.map((member) => {
+                // Through yesterday, so today's answers stay private until the day closes.
+                const streak = cleanStreak(member.answers, yesterday);
+                return (
+                  <YesterdayRow day={yesterday} key={member.id} member={member} title={member.name}>
+                    <p className="text-sm text-muted-foreground">{streak > 0 ? `${streak} ${streak === 1 ? "día limpio" : "días limpios"} seguidos` : "Empezando de nuevo"}</p>
+                  </YesterdayRow>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className="mt-4 text-sm text-muted-foreground">Aún no hay nadie haciendo el reto. Invita a quien quieras acompañar.</p>
+          )}
+        </section>
+        {weekCard}
+        <DeviceSetup hideWhenReady vapidPublicKey={getVapidPublicKey()} />
+      </AppShell>
+    );
+  }
+
   const streak = cleanStreak(myAnswers, today);
   const best = longestStreak(myAnswers);
   const rate = cleanRate(myAnswers, today);
   const total = totalCleanDays(myAnswers);
-  const together = members.length > 1 ? groupStreak(members, yesterday) : 0;
-  const others = members.filter((member) => !member.isMe);
-  const yesterdayMembers = members.filter((member) => member.joinedDay <= yesterday);
   const missedYesterday = yesterdayOpen && self.joinedDay <= yesterday && !myAnswers.has(yesterday);
-  // Reminders only once tonight's question has gone out; in the morning nobody is expected to have answered.
-  const pendingToday = askedTonight ? others.filter((member) => !member.answers.has(today)) : [];
 
   return (
     <AppShell groupName={membership.group.name}>
@@ -108,75 +175,63 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {others.length > 0 ? (
+      {members.length > 1 ? (
         <section className="mt-4 rounded-3xl border border-border bg-surface px-5 py-3">
           <SosButton />
         </section>
       ) : null}
 
-      {yesterdayMembers.length > 0 ? (
+      {yesterdayParticipants.length > 0 ? (
         <section className={cn(cardClass, "mt-4")}>
           <h2 className="font-medium">Ayer</h2>
-          <ul className="mt-3 grid gap-3">
-            {yesterdayMembers.map((member) => {
-              const status = statusOf(member.answers.get(yesterday));
-              return (
-                <li key={member.id}>
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="min-w-0 flex-1 truncate">{member.isMe ? "Tú" : member.name}</span>
-                    {!member.isMe ? <SignalButton kind="cheer" sent={member.cheered} status={status} toName={member.name} toUserId={member.id} /> : null}
-                    <span
-                      className={cn(
-                        "shrink-0 rounded-full px-3 py-1 text-sm",
-                        status === "clean" && "bg-clean/15 text-clean",
-                        status === "relapsed" && "bg-relapse/15 text-relapse",
-                        status === "silent" && "bg-silent/15 text-muted-foreground",
-                      )}
-                    >
-                      {{ clean: "Se mantuvo", relapsed: "Recayó", silent: "No respondió" }[status]}
-                      {member.corrected.has(yesterday) ? <span className="ml-1 text-xs opacity-70">· corregido</span> : null}
-                    </span>
-                  </div>
-                  {member.isMe && yesterdayOpen && status !== "silent" ? (
-                    <NoteEditor day={yesterday} note={member.notes.yesterday} />
-                  ) : member.notes.yesterday ? (
-                    <p className="mt-1 text-sm text-muted-foreground">“{member.notes.yesterday}”</p>
-                  ) : null}
-                </li>
-              );
-            })}
+          {otherParticipants.length > 0 ? <p className="mt-1 text-sm text-muted-foreground">Cada botón le manda una notificación a esa persona.</p> : null}
+          <ul className="mt-4 grid gap-4">
+            {yesterdayParticipants.map((member) => (
+              <YesterdayRow day={yesterday} editableNote={member.isMe && yesterdayOpen} key={member.id} member={member} title={member.isMe ? "Tú" : member.name} />
+            ))}
           </ul>
         </section>
       ) : null}
 
-      <section className={cn(cardClass, "mt-4")}>
-        <div className="flex items-baseline justify-between gap-3">
-          <h2 className="font-medium">Esta semana</h2>
-          {together > 0 ? (
-            <p className="text-sm text-primary">
-              🔥 {together} {together === 1 ? "día" : "días"} todos limpios
-            </p>
-          ) : null}
-        </div>
-        <div className="mt-2">
-          <GroupWeek days={daysEndingOn(today, HISTORY_DAYS)} members={members} today={today} />
-        </div>
-        {pendingToday.length > 0 ? (
-          <ul className="mt-4 grid gap-2 border-t border-border pt-4">
-            {pendingToday.map((member) => (
-              <li className="flex items-center justify-between gap-3 text-sm" key={member.id}>
-                <span className="truncate text-muted-foreground">{member.name} aún no responde hoy</span>
-                <SignalButton kind="nudge" sent={member.nudged} toName={member.name} toUserId={member.id} />
-              </li>
-            ))}
-          </ul>
-        ) : null}
-        <div className="mt-4">
-          <InviteLink code={membership.group.inviteCode} groupName={membership.group.name} />
-        </div>
-      </section>
+      {weekCard}
 
       <DeviceSetup hideWhenReady vapidPublicKey={getVapidPublicKey()} />
     </AppShell>
+  );
+}
+
+type RowMember = Awaited<ReturnType<typeof loadGroupHome>>["members"][number];
+
+/** One participant's yesterday: status, note, and (for others) the one-tap message fitted to it. */
+function YesterdayRow({ member, day, title, editableNote = false, children }: { member: RowMember; day: DayKey; title: string; editableNote?: boolean; children?: React.ReactNode }) {
+  const status = statusOf(member.answers.get(day));
+  return (
+    <li>
+      <div className="flex items-center justify-between gap-3">
+        <span className="min-w-0 flex-1 truncate">{title}</span>
+        <span
+          className={cn(
+            "shrink-0 rounded-full px-3 py-1 text-sm",
+            status === "clean" && "bg-clean/15 text-clean",
+            status === "relapsed" && "bg-relapse/15 text-relapse",
+            status === "silent" && "bg-silent/15 text-muted-foreground",
+          )}
+        >
+          {{ clean: "Se mantuvo", relapsed: "Recayó", silent: "No respondió" }[status]}
+          {member.corrected.has(day) ? <span className="ml-1 text-xs opacity-70">· corregido</span> : null}
+        </span>
+      </div>
+      {children}
+      {editableNote && status !== "silent" ? (
+        <NoteEditor day={day} note={member.notes.yesterday} />
+      ) : member.notes.yesterday ? (
+        <p className="mt-1 text-sm text-muted-foreground">“{member.notes.yesterday}”</p>
+      ) : null}
+      {!member.isMe ? (
+        <div className="mt-2">
+          <SignalButton kind="cheer" sent={member.cheered} status={status} toName={member.name} toUserId={member.id} />
+        </div>
+      ) : null}
+    </li>
   );
 }
