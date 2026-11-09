@@ -34,6 +34,7 @@ Last updated: 2026-10-14
 - One-tap messages are labeled buttons (👏 Felicitar, 💪 Dar ánimo, 💛 Preguntar cómo va, 🔔 Recordarle) with "✓ Enviado" after sending.
 - Days now change at midnight (no 5 a.m. rollover); the app refreshes when brought back to the foreground.
 - "Ayer" shows only the others, one row each: name and status on the left, one-tap button on the right (👏 Felicitar, 💪 Ánimo, 💛 ¿Cómo vas?); a corrected day shows an asterisk.
+- History screen (`/historial`): month calendar and week list for yourself or any participant, linked from the week card.
 - iPhone guidance: Share › “Agregar a inicio” install steps, an iOS 16.4+ note, and iOS settings path for blocked notifications.
 
 ## Next

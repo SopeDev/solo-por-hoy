@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { supporterReportTitle, cheerMessage, cleanRate, cleanStreak, dayReport, displayName, groupStreak, isMilestone, joinNames, longestStreak, milestoneLabel, reportMessage, totalCleanDays } from "./check-ins";
+import { calendarStatus, countStatuses, supporterReportTitle, cheerMessage, cleanRate, cleanStreak, dayReport, displayName, groupStreak, isMilestone, joinNames, longestStreak, milestoneLabel, reportMessage, totalCleanDays } from "./check-ins";
 
 describe("cleanStreak", () => {
   const answers = (entries: Record<string, boolean>) => new Map(Object.entries(entries));
@@ -113,6 +113,19 @@ describe("progress", () => {
     assert.equal(supporterReportTitle("G", quiet, [{ name: "Jorge" }]), "Jorge está de racha: mándale una felicitación 👏");
     const rough = dayReport([{ name: "Jorge", answer: true }, { name: "Luis", answer: true }]);
     assert.equal(supporterReportTitle("G", rough, [{ name: "Ana" }]), "Jorge y Luis recayeron ayer: un mensaje les ayuda 💛");
+  });
+
+  it("shows calendar days without revealing today", () => {
+    const answers = new Map([["2026-10-18", false], ["2026-10-19", true], ["2026-10-20", false]]);
+    const me = { answers, startDay: "2026-10-18", isMe: true };
+    const other = { ...me, isMe: false };
+    assert.equal(calendarStatus("2026-10-17", me, "2026-10-20"), "before");
+    assert.equal(calendarStatus("2026-10-19", other, "2026-10-20"), "relapsed");
+    assert.equal(calendarStatus("2026-10-20", me, "2026-10-20"), "clean");
+    assert.equal(calendarStatus("2026-10-20", other, "2026-10-20"), "hidden");
+    assert.equal(calendarStatus("2026-10-21", me, "2026-10-20"), "future");
+    assert.equal(calendarStatus("2026-10-20", { ...me, answers: new Map() }, "2026-10-20"), "future");
+    assert.deepEqual(countStatuses(["clean", "hidden", "silent", "relapsed", "clean", "before"]), { clean: 2, relapsed: 1, silent: 1 });
   });
 
   it("prefers the nickname", () => {

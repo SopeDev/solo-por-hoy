@@ -50,3 +50,49 @@ export function formatDay(day: DayKey) {
 export function weekdayInitial(day: DayKey) {
   return new Intl.DateTimeFormat("es-MX", { weekday: "narrow", timeZone: "UTC" }).format(dateOfDay(day)).toUpperCase();
 }
+
+/** A month as "YYYY-MM". */
+export type MonthKey = string;
+
+export function monthOf(day: DayKey): MonthKey {
+  return day.slice(0, 7);
+}
+
+export function isMonthKey(value: unknown): value is MonthKey {
+  return typeof value === "string" && /^\d{4}-(0[1-9]|1[0-2])$/.test(value);
+}
+
+export function addMonths(month: MonthKey, months: number): MonthKey {
+  const [year, index] = month.split("-").map(Number);
+  const date = new Date(Date.UTC(year, index - 1 + months, 1));
+  return date.toISOString().slice(0, 7);
+}
+
+/** The Monday that starts the week of a day. */
+export function weekStart(day: DayKey): DayKey {
+  const weekday = dateOfDay(day).getUTCDay();
+  return addDays(day, -((weekday + 6) % 7));
+}
+
+/** The calendar for a month: whole weeks, Monday first, including the days of neighboring months that fill them. */
+export function monthWeeks(month: MonthKey): DayKey[][] {
+  const first = `${month}-01`;
+  const last = addDays(`${addMonths(month, 1)}-01`, -1);
+  const weeks: DayKey[][] = [];
+  for (let start = weekStart(first); start <= last; start = addDays(start, 7)) weeks.push(daysEndingOn(addDays(start, 6), 7));
+  return weeks;
+}
+
+/** "Octubre de 2026" */
+export function formatMonth(month: MonthKey) {
+  const text = new Intl.DateTimeFormat("es-MX", { month: "long", year: "numeric", timeZone: "UTC" }).format(dateOfDay(`${month}-01`));
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+/** "13 – 19 oct", or "27 oct – 2 nov" across months. */
+export function formatWeek(start: DayKey) {
+  const end = addDays(start, 6);
+  const day = (key: DayKey) => Number(key.slice(8));
+  const month = (key: DayKey) => new Intl.DateTimeFormat("es-MX", { month: "short", timeZone: "UTC" }).format(dateOfDay(key)).replace(".", "");
+  return monthOf(start) === monthOf(end) ? `${day(start)} – ${day(end)} ${month(end)}` : `${day(start)} ${month(start)} – ${day(end)} ${month(end)}`;
+}
