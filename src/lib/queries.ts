@@ -143,3 +143,33 @@ export async function loadGroupHome(userId: string, groupId: string, today: DayK
     myAnswers: answersByUser.get(userId) ?? new Map<DayKey, boolean>(),
   };
 }
+
+/**
+ * The group's participants for the history screen, and one person's full history: the viewer's own, or a groupmate
+ * participant's (defaults to the viewer, or to the first participant when the viewer only accompanies).
+ */
+export async function loadHistory(userId: string, groupId: string, personId?: string) {
+  const memberships = await db.membership.findMany({
+    where: { groupId, role: "PARTICIPANT" },
+    orderBy: { joinedAt: "asc" },
+    include: { user: { select: { id: true, ...USER_NAME_FIELDS } } },
+  });
+  const people = memberships.map((membership) => ({
+    id: membership.userId,
+    name: membership.userId === userId ? "Tú" : displayName(membership.user),
+    isMe: membership.userId === userId,
+    startDay: participantStartDay(membership),
+  }));
+  // The viewer first.
+  people.sort((a, b) => Number(b.isMe) - Number(a.isMe));
+  const person = people.find((candidate) => candidate.id === personId) ?? people[0];
+  if (!person) return { people, person: null, answers: new Map<DayKey, boolean>(), corrected: new Set<DayKey>() };
+
+  const checkIns = await db.checkIn.findMany({ where: { userId: person.id }, select: { day: true, relapsed: true, correctedById: true } });
+  return {
+    people,
+    person,
+    answers: new Map(checkIns.map((checkIn) => [dayOfDate(checkIn.day), checkIn.relapsed])),
+    corrected: new Set(checkIns.filter((checkIn) => checkIn.correctedById).map((checkIn) => dayOfDate(checkIn.day))),
+  };
+}

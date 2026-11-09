@@ -53,6 +53,7 @@ Last updated: 2026-10-14
 ## Screens
 
 - Home: a missed-yesterday card when it applies, today's question with the person's porqué, streak / best streak / clean-day rate, SOS, yesterday's results with notes and encouragement, the week grid with reminders for who hasn't answered, and the device card only until the app is installed and reminders are on.
+- History (`/historial`, "Ver historial completo" in the week card): any participant's whole history, by month (a calendar with that month's counts) or by week (a list, newest first). Others' answers for today stay hidden, like everywhere else.
 - Settings (`/ajustes`, gear in the header): profile, group (members, admin actions, invite link, leave), this device, sign out.
 
 ## Brand

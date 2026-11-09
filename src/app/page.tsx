@@ -1,3 +1,5 @@
+import { CalendarDays } from "lucide-react";
+import Link from "next/link";
 import { createGroup, joinGroup } from "@/app/actions/groups";
 import { AppShell, cardClass, inputClass } from "@/components/app-shell";
 import { CheckInButtons } from "@/components/check-in-buttons";
@@ -99,7 +101,13 @@ export default async function HomePage() {
           ))}
         </ul>
       ) : null}
-      <div className="mt-4">
+      <Link
+        className="mt-4 flex min-h-11 items-center justify-center gap-2 rounded-xl border border-border px-4 text-sm font-medium transition hover:bg-white/5"
+        href="/historial"
+      >
+        <CalendarDays aria-hidden size={18} /> Ver historial completo
+      </Link>
+      <div className="mt-3">
         <InviteLink code={membership.group.inviteCode} groupName={membership.group.name} />
       </div>
     </section>

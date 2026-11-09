@@ -52,6 +52,30 @@ export function cleanRate(answers: ReadonlyMap<DayKey, boolean>, today: DayKey) 
   return clean / total;
 }
 
+/** How a calendar day shows for someone: their answer, or why there is none to show. */
+export type CalendarStatus = DayStatus | "hidden" | "before" | "future";
+
+/**
+ * A day in someone's history: nothing before they started or after today, and others' answers for today stay
+ * hidden until the day closes.
+ */
+export function calendarStatus(day: DayKey, person: { answers: ReadonlyMap<DayKey, boolean>; startDay: DayKey; isMe: boolean }, today: DayKey): CalendarStatus {
+  if (day > today) return "future";
+  if (day < person.startDay && !person.answers.has(day)) return "before";
+  if (day === today) {
+    if (!person.answers.has(day)) return "future";
+    if (!person.isMe) return "hidden";
+  }
+  return statusOf(person.answers.get(day));
+}
+
+/** Clean, relapsed and unanswered days among those with something to show. */
+export function countStatuses(statuses: CalendarStatus[]) {
+  const counts = { clean: 0, relapsed: 0, silent: 0 };
+  for (const status of statuses) if (status === "clean" || status === "relapsed" || status === "silent") counts[status] += 1;
+  return counts;
+}
+
 /** Every clean day ever. Unlike the streak, a relapse never takes these away. */
 export function totalCleanDays(answers: ReadonlyMap<DayKey, boolean>) {
   let total = 0;
